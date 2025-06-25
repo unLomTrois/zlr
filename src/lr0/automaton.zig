@@ -24,6 +24,9 @@ pub const Automaton = struct {
     }
 
     pub fn deinit(self: *Automaton) void {
+        for (self.states.items) |state| {
+            state.deinit(self.allocator);
+        }
         self.states.deinit();
         self.grammar.deinit(self.allocator);
     }
@@ -40,40 +43,38 @@ pub const Automaton = struct {
 
         // Compute the initial closure
         const initial_items = try self.CLOSURE(&.{start_item}, self.allocator);
-        const initial_state = try State.init(self.allocator, 0, initial_items);
-        defer initial_state.deinit(self.allocator);
-
+        const initial_state = State.fromOwned(0, initial_items);
         try self.states.append(initial_state);
 
         try self.build_states();
-
-        for (self.states.items) |state| {
-            std.debug.print("{any}\n", .{state});
-        }
     }
 
     fn build_states(self: *Automaton) !void {
-        var state_iter = State.ArrayListIter.from(&self.states);
-
         var state_hash_map = State.HashMap(void).init(self.allocator);
         defer state_hash_map.deinit();
 
         var i: usize = 1;
+        var state_iter = State.ArrayListIter.from(&self.states);
         while (state_iter.next()) |state| {
             var unique_iter = Item.UniqueIter.init(self.allocator, state.items);
             defer unique_iter.deinit();
-            while (try unique_iter.next()) |item| : (i += 1) {
+            while (try unique_iter.next()) |item| {
                 const dot_symbol = item.dot_symbol() orelse continue;
 
                 const goto_items = try self.GOTO(state.items, dot_symbol, self.allocator);
 
-                const new_state = try State.init(self.allocator, i, goto_items);
+                const new_state = State.fromOwned(i, goto_items);
 
-                if (state_hash_map.contains(new_state)) continue;
+                if (state_hash_map.contains(new_state)) {
+                    new_state.deinit(self.allocator);
+                    continue;
+                }
 
                 try state_hash_map.put(new_state, {});
 
-                try self.states.append(new_state);
+                try self.states.append(new_state); // Automaton owns new_state and deinit it
+
+                i += 1;
             }
         }
     }
@@ -134,19 +135,15 @@ pub const Automaton = struct {
     }
 };
 
-test "automaton" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-    const arena_allocator = arena.allocator();
+test "automaton does not leak with non-arena allocator" {
+    const allocator = std.testing.allocator;
 
-    const grammar = try grammars.examples.SimpleGrammar(arena_allocator);
+    const grammar = try grammars.examples.SimpleGrammar(allocator);
 
-    var automaton = Automaton.init(arena_allocator, grammar);
+    var automaton = Automaton.init(allocator, grammar);
     defer automaton.deinit();
 
     try automaton.build();
 
-    // try std.testing.expect(automaton.states.items.len == 1);
-
-    // std.debug.print("automaton:\n{any}\n", .{automaton});
+    try std.testing.expectEqual(11, automaton.states.items.len);
 }
