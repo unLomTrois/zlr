@@ -6,9 +6,9 @@ const Grammar = grammars.Grammar;
 const GrammarBuilder = grammars.GrammarBuilder;
 const Rule = grammars.Rule;
 
-const Item = @import("item.zig").Item;
+const Item = @import("../lr/item.zig").Item;
 
-const State = @import("state.zig").State;
+const State = @import("../lr/state.zig").State;
 
 pub const Automaton = struct {
     allocator: std.mem.Allocator,
