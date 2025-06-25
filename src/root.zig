@@ -7,6 +7,6 @@ const testing = std.testing;
 pub const grammar = @import("grammars/grammar.zig");
 pub const lr = @import("lr/automaton.zig");
 
-test {
-    std.testing.refAllDecls(@This());
+comptime {
+    _ = @import("root_tests.zig");
 }
