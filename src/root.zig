@@ -5,6 +5,7 @@ const std = @import("std");
 const testing = std.testing;
 
 pub const grammar = @import("grammars/grammar.zig");
+pub const lr = @import("lr/automaton.zig");
 
 test {
     std.testing.refAllDecls(@This());
