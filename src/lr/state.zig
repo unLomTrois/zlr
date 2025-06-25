@@ -12,14 +12,14 @@ pub const State = struct {
 
     /// Implies that items were allocated, or from toOwnedSlice.
     /// State owns items. Caller must deinit state.
-    pub fn fromOwned(id: usize, items: []Item) State {
+    pub fn fromOwnedSlice(id: usize, items: []Item) State {
         return State{
             .id = id,
             .items = items,
         };
     }
 
-    pub fn fromDuped(allocator: std.mem.Allocator, id: usize, items: []const Item) !State {
+    pub fn initDupe(allocator: std.mem.Allocator, id: usize, items: []const Item) !State {
         return State{
             .id = id,
             .items = try allocator.dupe(Item, items),
@@ -98,7 +98,7 @@ pub const State = struct {
 test "state_hash_map" {
     const allocator = std.testing.allocator;
 
-    const state = try State.fromDuped(allocator, 0, &.{
+    const state = try State.initDupe(allocator, 0, &.{
         Item.from(
             Rule.from(
                 Symbol.from("S"),

@@ -43,7 +43,7 @@ pub const Automaton = struct {
 
         // Compute the initial closure
         const initial_items = try self.CLOSURE(&.{start_item}, self.allocator);
-        const initial_state = State.fromOwned(0, initial_items);
+        const initial_state = State.fromOwnedSlice(0, initial_items);
         try self.states.append(initial_state);
 
         try self.build_states();
@@ -63,7 +63,7 @@ pub const Automaton = struct {
 
                 const goto_items = try self.GOTO(state.items, dot_symbol, self.allocator);
 
-                const new_state = State.fromOwned(i, goto_items);
+                const new_state = State.fromOwnedSlice(i, goto_items);
 
                 if (state_hash_map.contains(new_state)) {
                     new_state.deinit(self.allocator);
