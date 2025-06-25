@@ -8,20 +8,23 @@ const Item = @import("item.zig").Item;
 
 pub const State = struct {
     id: usize,
-    items: []const Item,
+    items: []Item,
 
-    pub fn init(allocator: std.mem.Allocator, id: usize, items: []const Item) !State {
+    /// Implies that items were allocated, or from toOwnedSlice.
+    /// State owns items. Caller must deinit state.
+    pub fn fromOwned(id: usize, items: []Item) State {
+        return State{
+            .id = id,
+            .items = items,
+        };
+    }
+
+    pub fn fromDuped(allocator: std.mem.Allocator, id: usize, items: []const Item) !State {
         return State{
             .id = id,
             .items = try allocator.dupe(Item, items),
         };
     }
-
-    // pub inline fn from(items: []const Item) State {
-    //     return State{
-    //         .items = items,
-    //     };
-    // }
 
     pub fn deinit(self: *const State, allocator: std.mem.Allocator) void {
         allocator.free(self.items);
@@ -95,7 +98,7 @@ pub const State = struct {
 test "state_hash_map" {
     const allocator = std.testing.allocator;
 
-    const state = try State.init(allocator, 0, &.{
+    const state = try State.fromDuped(allocator, 0, &.{
         Item.from(
             Rule.from(
                 Symbol.from("S"),
@@ -103,6 +106,7 @@ test "state_hash_map" {
             ),
         ),
     });
+
     defer state.deinit(allocator);
 
     var hash_map = State.HashMap(void).init(allocator);
