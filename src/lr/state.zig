@@ -7,10 +7,12 @@ const Rule = grammars.Rule;
 const Item = @import("item.zig").Item;
 
 pub const State = struct {
+    id: usize,
     items: []const Item,
 
-    pub fn init(allocator: std.mem.Allocator, items: []const Item) !State {
+    pub fn init(allocator: std.mem.Allocator, id: usize, items: []const Item) !State {
         return State{
+            .id = id,
             .items = try allocator.dupe(Item, items),
         };
     }
@@ -62,7 +64,7 @@ pub const State = struct {
     pub fn format(self: *const State, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;
         _ = options;
-        try writer.print("State\n", .{});
+        try writer.print("State {d}\n", .{self.id});
         for (self.items) |item| {
             try writer.print("  {any}\n", .{item});
         }
@@ -93,7 +95,7 @@ pub const State = struct {
 test "state_hash_map" {
     const allocator = std.testing.allocator;
 
-    const state = try State.init(allocator, &.{
+    const state = try State.init(allocator, 0, &.{
         Item.from(
             Rule.from(
                 Symbol.from("S"),

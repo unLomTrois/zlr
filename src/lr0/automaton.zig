@@ -40,14 +40,16 @@ pub const Automaton = struct {
 
         // Compute the initial closure
         const initial_items = try self.CLOSURE(&.{start_item}, self.allocator);
-        // defer self.allocator.free(initial_items);
-
-        const initial_state = try State.init(self.allocator, initial_items);
+        const initial_state = try State.init(self.allocator, 0, initial_items);
         defer initial_state.deinit(self.allocator);
 
         try self.states.append(initial_state);
 
         try self.build_states();
+
+        for (self.states.items) |state| {
+            std.debug.print("{any}\n", .{state});
+        }
     }
 
     fn build_states(self: *Automaton) !void {
@@ -56,30 +58,22 @@ pub const Automaton = struct {
         var state_hash_map = State.HashMap(void).init(self.allocator);
         defer state_hash_map.deinit();
 
-        var i: usize = 0;
-        std.debug.print("{d} {any}\n", .{ i, self.states.items[0] });
-        i += 1;
-
+        var i: usize = 1;
         while (state_iter.next()) |state| {
             var unique_iter = Item.UniqueIter.init(self.allocator, state.items);
             defer unique_iter.deinit();
-            while (try unique_iter.next()) |item| {
+            while (try unique_iter.next()) |item| : (i += 1) {
                 const dot_symbol = item.dot_symbol() orelse continue;
 
                 const goto_items = try self.GOTO(state.items, dot_symbol, self.allocator);
-                // defer self.allocator.free(goto_items);
 
-                const new_state = try State.init(self.allocator, goto_items);
-                // defer new_state.deinit(self.allocator);
-                std.debug.print("{d} {any}\n", .{ i, new_state });
+                const new_state = try State.init(self.allocator, i, goto_items);
 
                 if (state_hash_map.contains(new_state)) continue;
 
                 try state_hash_map.put(new_state, {});
 
                 try self.states.append(new_state);
-
-                i += 1;
             }
         }
     }
