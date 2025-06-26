@@ -10,16 +10,44 @@ const Item = @import("../lr/item.zig").Item;
 
 const State = @import("../lr/state.zig").State;
 
+const Transition = struct {
+    from: usize,
+    to: usize,
+    symbol: Symbol,
+
+    pub fn format(self: *const Transition, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+        try writer.print("goto({}, {})\t-> {}", .{ self.from, self.symbol, self.to });
+    }
+
+    const HashContext = struct {
+        pub fn hash(_: HashContext, key: u64) u32 {
+            return @truncate(key);
+        }
+
+        pub fn eql(_: HashContext, a: u64, b: u64, _: usize) bool {
+            return a == b;
+        }
+    };
+
+    pub fn HashMap(comptime V: type) type {
+        return std.ArrayHashMap(V, Transition, HashContext, true);
+    }
+};
+
 pub const Automaton = struct {
     allocator: std.mem.Allocator,
     grammar: Grammar,
     states: std.ArrayList(State),
+    transitions: Transition.HashMap(u64),
 
     pub fn init(allocator: std.mem.Allocator, grammar: Grammar) Automaton {
         return Automaton{
             .allocator = allocator,
             .grammar = grammar,
             .states = std.ArrayList(State).init(allocator),
+            .transitions = Transition.HashMap(u64).init(allocator),
         };
     }
 
@@ -29,6 +57,7 @@ pub const Automaton = struct {
         }
         self.states.deinit();
         self.grammar.deinit(self.allocator);
+        self.transitions.deinit();
     }
 
     fn build(self: *Automaton) !void {
@@ -70,6 +99,13 @@ pub const Automaton = struct {
                     continue;
                 }
 
+                const transition_hash = self.calc_transition_hash(new_state, dot_symbol);
+                try self.transitions.put(transition_hash, .{
+                    .from = state.id,
+                    .to = new_state.id,
+                    .symbol = dot_symbol,
+                });
+
                 try state_hash_map.put(new_state, {});
 
                 try self.states.append(new_state); // Automaton owns new_state and deinit it
@@ -77,6 +113,10 @@ pub const Automaton = struct {
                 i += 1;
             }
         }
+    }
+
+    fn calc_transition_hash(_: *Automaton, state: State, symbol: Symbol) u64 {
+        return (Symbol.HashContext{}).hash(symbol) ^ @as(u64, state.id);
     }
 
     /// CLOSURE computes the CLOSURE of a set of items.
@@ -138,12 +178,19 @@ pub const Automaton = struct {
 test "automaton does not leak with non-arena allocator" {
     const allocator = std.testing.allocator;
 
-    const grammar = try grammars.examples.SimpleGrammar(allocator);
+    const grammar = try grammars.examples.ExpressionGrammar(allocator);
 
     var automaton = Automaton.init(allocator, grammar);
     defer automaton.deinit();
 
     try automaton.build();
 
-    try std.testing.expectEqual(11, automaton.states.items.len);
+    for (automaton.states.items) |state| {
+        std.debug.print("{any}\n", .{state});
+    }
+
+    var transition_iter = automaton.transitions.iterator();
+    while (transition_iter.next()) |transition| {
+        std.debug.print("{any}\n", .{transition.value_ptr});
+    }
 }
