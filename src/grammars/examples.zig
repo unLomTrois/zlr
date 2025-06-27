@@ -77,7 +77,7 @@ pub fn SimpleGrammar(allocator: std.mem.Allocator) !Grammar {
 
 // cycle -> id "+" id | factor.
 // factor -> "(" cycle ")" | id.
-pub fn SimpleCycleGrammar(allocator: std.mem.Allocator) !Grammar {
+pub fn ShiftReduceGrammar(allocator: std.mem.Allocator) !Grammar {
     const id = Symbol.from("id");
     const plus = Symbol.from("+");
     const lparen = Symbol.from("(");
@@ -103,7 +103,7 @@ pub fn SimpleCycleGrammar(allocator: std.mem.Allocator) !Grammar {
 // S -> A | B .
 // A -> c .
 // B-> c .
-pub fn ReduceReduceConflictGrammar(allocator: std.mem.Allocator) !Grammar {
+pub fn ReduceReduceGrammar(allocator: std.mem.Allocator) !Grammar {
     const c = Symbol.from("c");
     const S = Symbol.from("S");
     const A = Symbol.from("A");

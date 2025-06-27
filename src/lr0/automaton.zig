@@ -177,74 +177,102 @@ pub const Automaton = struct {
 
 test "automaton does not leak with non-arena allocator" {
     const allocator = std.testing.allocator;
-    const grammar = try grammars.examples.SimpleCycleGrammar(allocator);
+    const grammar = try grammars.examples.ExpressionGrammar(allocator);
     var automaton = Automaton.init(allocator, grammar);
     defer automaton.deinit();
     try automaton.build();
+
+    for (automaton.states.items) |state| {
+        std.debug.print("{s}", .{state});
+    }
 }
 
 const LRError = error{ ShiftReduceConflict, ReduceReduceConflict } || std.mem.Allocator.Error;
 
-// Check whether items with the same pre-dot symbol have different actions
-// e.g.   [shift] cycle -> id • + id
-//        [reduce] factor -> id •
-// This is a shift-reduce conflict
-fn validate_state(state: State, allocator: std.mem.Allocator, toLog: bool) LRError!void {
-    var action_map = Symbol.HashMap(Action).init(allocator);
-    defer action_map.deinit();
+const LR0Validator = struct {
+    states: *std.ArrayList(State),
+    idx: usize,
+    allocator: std.mem.Allocator,
+    toLog: bool = false,
 
-    if (toLog) {
-        std.debug.print("\n{s}", .{state});
+    pub fn from(states: *std.ArrayList(State), allocator: std.mem.Allocator) LR0Validator {
+        return LR0Validator{ .states = states, .idx = 0, .allocator = allocator };
     }
 
-    for (state.items) |item| {
-        const top_stack_symbol = item.pre_dot_symbol() orelse Symbol.Epsilon; // epsilon for A -> • B cases
+    pub fn next(self: *LR0Validator) ?StateAndError {
+        if (self.idx >= self.states.items.len) return null;
 
-        const current_action = action_map.get(top_stack_symbol) orelse {
-            try action_map.put(top_stack_symbol, item.action);
-            continue;
+        const state = self.states.items[self.idx];
+        self.idx += 1;
+
+        validate_state(state, self.allocator, self.toLog) catch |err| {
+            if (self.toLog) {
+                std.debug.print("{any}\n", .{err});
+            }
+            return StateAndError{ .state = state, .err = err };
         };
 
-        if (current_action != item.action) {
-            return error.ShiftReduceConflict;
+        return StateAndError{ .state = state, .err = null };
+    }
+
+    const StateAndError = struct {
+        state: State,
+        err: ?LRError,
+    };
+
+    fn validate_state(state: State, allocator: std.mem.Allocator, toLog: bool) LRError!void {
+        var action_map = Symbol.HashMap(Action).init(allocator);
+        defer action_map.deinit();
+
+        if (toLog) {
+            std.debug.print("\n{s}", .{state});
         }
 
-        if (current_action == item.action and current_action == .reduce) {
-            return error.ReduceReduceConflict;
+        for (state.items) |item| {
+            const top_stack_symbol = item.pre_dot_symbol() orelse Symbol.Epsilon; // epsilon for A -> • B cases
+
+            const current_action = action_map.get(top_stack_symbol) orelse {
+                try action_map.put(top_stack_symbol, item.action);
+                continue;
+            };
+
+            if (current_action != item.action) {
+                return error.ShiftReduceConflict;
+            }
+
+            if (current_action == item.action and current_action == .reduce) {
+                return error.ReduceReduceConflict;
+            }
         }
     }
-}
-
-fn validate_automaton(states: []const State, allocator: std.mem.Allocator) LRError!void {
-    for (states) |state| {
-        validate_state(state, allocator, true) catch |err| {
-            std.debug.print("error: {any}\n", .{err});
-
-            return err;
-        };
-    }
-}
+};
 
 test "shift-reduce conflict" {
     const allocator = std.testing.allocator;
-    const grammar = try grammars.examples.SimpleCycleGrammar(allocator);
+    const grammar = try grammars.examples.ShiftReduceGrammar(allocator);
     var automaton = Automaton.init(allocator, grammar);
     defer automaton.deinit();
     try automaton.build();
 
-    validate_automaton(automaton.states.items, allocator) catch |err| {
-        try std.testing.expectEqual(LRError.ShiftReduceConflict, err);
-    };
+    var iter = LR0Validator.from(&automaton.states, allocator);
+    while (iter.next()) |state_and_error| {
+        if (state_and_error.err) |err| {
+            try std.testing.expectEqual(LRError.ShiftReduceConflict, err);
+        }
+    }
 }
 
 test "reduce-reduce conflict" {
     const allocator = std.testing.allocator;
-    const grammar = try grammars.examples.ReduceReduceConflictGrammar(allocator);
+    const grammar = try grammars.examples.ReduceReduceGrammar(allocator);
     var automaton = Automaton.init(allocator, grammar);
     defer automaton.deinit();
     try automaton.build();
 
-    validate_automaton(automaton.states.items, allocator) catch |err| {
-        try std.testing.expectEqual(LRError.ReduceReduceConflict, err);
-    };
+    var iter = LR0Validator.from(&automaton.states, allocator);
+    while (iter.next()) |state_and_error| {
+        if (state_and_error.err) |err| {
+            try std.testing.expectEqual(LRError.ReduceReduceConflict, err);
+        }
+    }
 }

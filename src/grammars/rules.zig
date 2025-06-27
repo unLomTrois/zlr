@@ -1,7 +1,9 @@
 const std = @import("std");
 const Symbol = @import("symbol.zig").Symbol;
 
-/// Rule is a production rule in a context-free grammar
+/// Rule stands for a `production rule` in a context-free grammar
+///
+/// e.g. S -> A a
 pub const Rule = struct {
     lhs: Symbol,
     rhs: []const Symbol,
