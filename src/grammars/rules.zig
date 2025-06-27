@@ -16,13 +16,6 @@ pub const Rule = struct {
         };
     }
 
-    // pub fn fromAlloc(alloc: std.mem.Allocator, lhs: Symbol, rhs: []Symbol) !Rule {
-    //     return Rule{
-    //         .lhs = lhs,
-    //         .rhs = try alloc.dupe(Symbol, rhs),
-    //     };
-    // }
-
     /// from const (static) slice to owned slice
     pub fn fromSlice(alloc: std.mem.Allocator, rules: []const Rule) ![]Rule {
         return try alloc.dupe(Rule, rules);
