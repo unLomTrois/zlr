@@ -1,9 +1,10 @@
 const std = @import("std");
 
 const grammars = @import("../grammars/grammar.zig");
-
 const Symbol = grammars.Symbol;
 const Rule = grammars.Rule;
+
+const Action = @import("action.zig").Action;
 
 /// Item represents an LR parsing item.
 /// It is a production rule with a dot position.
@@ -12,11 +13,13 @@ const Rule = grammars.Rule;
 pub const Item = struct {
     rule: Rule,
     dot_pos: usize,
+    action: Action,
 
     pub fn from(rule: Rule) Item {
         return Item{
             .rule = rule,
             .dot_pos = 0,
+            .action = .shift,
         };
     }
 
@@ -24,6 +27,7 @@ pub const Item = struct {
         return Item{
             .rule = rule,
             .dot_pos = 0,
+            .action = .shift,
         };
     }
 
@@ -32,6 +36,11 @@ pub const Item = struct {
     /// e.g. S -> A B •
     pub fn is_complete(self: Item) bool {
         return self.dot_pos >= self.rule.rhs.len;
+    }
+
+    pub fn is_accept_item(self: Item) bool {
+        std.debug.assert(self.is_complete());
+        return self.rule.lhs.eqlTo(Symbol.from("S'"));
     }
 
     /// The dot symbol is the symbol after the dot.
@@ -45,11 +54,32 @@ pub const Item = struct {
         return self.rule.rhs[self.dot_pos];
     }
 
+    /// For `• A + B` the top stack symbol is null.
+    ///
+    /// For `A • + B` the top stack symbol is `A`.
+    ///
+    /// For `A + • B` the top stack symbol is `+`.
+    pub fn pre_dot_symbol(self: *const Item) ?Symbol {
+        if (self.dot_pos == 0) {
+            return null;
+        }
+
+        return self.rule.rhs[self.dot_pos - 1];
+    }
+
     pub fn advance_dot_clone(self: *const Item) Item {
-        return Item{
+        var item = Item{
             .rule = self.rule,
             .dot_pos = self.dot_pos + 1,
+            .action = .shift,
         };
+
+        if (item.is_complete()) {
+            item.action = .reduce;
+            if (item.is_accept_item()) item.action = .accept;
+        }
+
+        return item;
     }
 
     /// Formats the struct as a string into a writer.
@@ -59,6 +89,7 @@ pub const Item = struct {
     /// e.g. S -> A B •
     /// Returns "S -> A B •"
     pub fn format(self: *const Item, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+        try writer.print("[{?s}] ", .{std.enums.tagName(Action, self.action)});
         try writer.print("{s} ->", .{self.rule.lhs.name});
 
         for (self.rule.rhs, 0..) |sym, i| {
@@ -186,13 +217,13 @@ test "item_format" {
     const rule = Rule.from(S, &[_]Symbol{ A, B });
     var item = Item.from(rule);
 
-    const cases = [_][]const u8{ "S -> • A B", "S -> A • B", "S -> A B •" };
+    const cases = [_][]const u8{ "[shift] S -> • A B", "[shift] S -> A • B", "[reduce] S -> A B •" };
 
     const allocator = std.testing.allocator;
     for (cases) |case| {
         const str = try std.fmt.allocPrint(allocator, "{s}", .{item});
         defer allocator.free(str);
-        defer item.dot_pos += 1;
+        defer item = item.advance_dot_clone();
         try std.testing.expectEqualStrings(case, str);
     }
 }
