@@ -80,6 +80,8 @@ pub const Symbol = struct {
     pub fn ArrayHashMap(comptime V: type) type {
         return std.ArrayHashMap(Symbol, V, ArrayHashContext, true);
     }
+
+    pub const Epsilon = Symbol.from("ε");
 };
 
 test "symbol_from" {
