@@ -7,7 +7,7 @@ TODO:
 - [x] LR(0) automata builder - build states from grammar
 - [ ] Check whether Golang version makes transitions correctly
 - [ ] Fix transitions
-- [ ] Validate whether certain grammar is LR(0) grammar
+- [x] Validate whether certain grammar is LR(0) grammar
 - [ ] AST primitieves: Nodes
 - [ ] LR(0) table parser
 - [ ] SLR automata parser

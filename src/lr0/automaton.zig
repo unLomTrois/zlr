@@ -7,8 +7,8 @@ const GrammarBuilder = grammars.GrammarBuilder;
 const Rule = grammars.Rule;
 
 const Item = @import("../lr/item.zig").Item;
-
 const State = @import("../lr/state.zig").State;
+const Action = @import("../lr/action.zig").Action;
 
 const Transition = struct {
     from: usize,
@@ -177,20 +177,74 @@ pub const Automaton = struct {
 
 test "automaton does not leak with non-arena allocator" {
     const allocator = std.testing.allocator;
-
-    const grammar = try grammars.examples.ExpressionGrammar(allocator);
-
+    const grammar = try grammars.examples.SimpleCycleGrammar(allocator);
     var automaton = Automaton.init(allocator, grammar);
     defer automaton.deinit();
+    try automaton.build();
+}
 
+const LRError = error{ ShiftReduceConflict, ReduceReduceConflict } || std.mem.Allocator.Error;
+
+// Check whether items with the same pre-dot symbol have different actions
+// e.g.   [shift] cycle -> id • + id
+//        [reduce] factor -> id •
+// This is a shift-reduce conflict
+fn validate_state(state: State, allocator: std.mem.Allocator, toLog: bool) LRError!void {
+    var action_map = Symbol.HashMap(Action).init(allocator);
+    defer action_map.deinit();
+
+    if (toLog) {
+        std.debug.print("\n{s}", .{state});
+    }
+
+    for (state.items) |item| {
+        const top_stack_symbol = item.pre_dot_symbol() orelse Symbol.Epsilon; // epsilon for A -> • B cases
+
+        const current_action = action_map.get(top_stack_symbol) orelse {
+            try action_map.put(top_stack_symbol, item.action);
+            continue;
+        };
+
+        if (current_action != item.action) {
+            return error.ShiftReduceConflict;
+        }
+
+        if (current_action == item.action and current_action == .reduce) {
+            return error.ReduceReduceConflict;
+        }
+    }
+}
+
+fn validate_automaton(states: []const State, allocator: std.mem.Allocator) LRError!void {
+    for (states) |state| {
+        validate_state(state, allocator, true) catch |err| {
+            std.debug.print("error: {any}\n", .{err});
+
+            return err;
+        };
+    }
+}
+
+test "shift-reduce conflict" {
+    const allocator = std.testing.allocator;
+    const grammar = try grammars.examples.SimpleCycleGrammar(allocator);
+    var automaton = Automaton.init(allocator, grammar);
+    defer automaton.deinit();
     try automaton.build();
 
-    for (automaton.states.items) |state| {
-        std.debug.print("{any}\n", .{state});
-    }
+    validate_automaton(automaton.states.items, allocator) catch |err| {
+        try std.testing.expectEqual(LRError.ShiftReduceConflict, err);
+    };
+}
 
-    var transition_iter = automaton.transitions.iterator();
-    while (transition_iter.next()) |transition| {
-        std.debug.print("{any}\n", .{transition.value_ptr});
-    }
+test "reduce-reduce conflict" {
+    const allocator = std.testing.allocator;
+    const grammar = try grammars.examples.ReduceReduceConflictGrammar(allocator);
+    var automaton = Automaton.init(allocator, grammar);
+    defer automaton.deinit();
+    try automaton.build();
+
+    validate_automaton(automaton.states.items, allocator) catch |err| {
+        try std.testing.expectEqual(LRError.ReduceReduceConflict, err);
+    };
 }
