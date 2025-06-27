@@ -75,6 +75,55 @@ pub fn SimpleGrammar(allocator: std.mem.Allocator) !Grammar {
     return try builder.toOwnedGrammar();
 }
 
+// cycle -> id "+" id | factor.
+// factor -> "(" cycle ")" | id.
+pub fn SimpleCycleGrammar(allocator: std.mem.Allocator) !Grammar {
+    const id = Symbol.from("id");
+    const plus = Symbol.from("+");
+    const lparen = Symbol.from("(");
+    const rparen = Symbol.from(")");
+    const cycle = Symbol.from("cycle");
+    const factor = Symbol.from("factor");
+
+    var builder = try GrammarBuilder.fromStaticGrammar(allocator, StaticGrammar.from(
+        cycle,
+        &.{ id, plus, lparen, rparen },
+        &.{ cycle, factor },
+        &.{
+            Rule.from(cycle, &.{ id, plus, id }), // cycle -> id + id
+            Rule.from(cycle, &.{factor}), // cycle -> factor
+            Rule.from(factor, &.{ lparen, cycle, rparen }), // factor -> ( cycle )
+            Rule.from(factor, &.{id}), // factor -> id
+        },
+    ));
+
+    return try builder.toOwnedGrammar();
+}
+
+// S -> A | B .
+// A -> c .
+// B-> c .
+pub fn ReduceReduceConflictGrammar(allocator: std.mem.Allocator) !Grammar {
+    const c = Symbol.from("c");
+    const S = Symbol.from("S");
+    const A = Symbol.from("A");
+    const B = Symbol.from("B");
+
+    var builder = try GrammarBuilder.fromStaticGrammar(allocator, StaticGrammar.from(
+        S,
+        &.{c},
+        &.{ S, A, B },
+        &.{
+            Rule.from(S, &.{A}), // S -> A
+            Rule.from(S, &.{B}), // S -> B
+            Rule.from(A, &.{c}), // A -> c
+            Rule.from(B, &.{c}), // B -> c
+        },
+    ));
+
+    return try builder.toOwnedGrammar();
+}
+
 test "expression grammar" {
     const allocator = std.testing.allocator;
     const grammar = try ExpressionGrammar(allocator);
