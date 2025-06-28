@@ -38,21 +38,19 @@ pub const Rule = struct {
     }
 
     /// Iterate over all rules whose `lhs` matches a given symbol.
-    pub const LhsMatchIter = struct {
+    pub const FilterLhsIter = struct {
         rules: []const Rule,
-        lhs: Symbol,
         idx: usize = 0,
 
-        pub inline fn from(rules: []const Rule, lhs: Symbol) LhsMatchIter {
-            return LhsMatchIter{ .rules = rules, .lhs = lhs, .idx = 0 };
+        pub inline fn from(rules: []const Rule) FilterLhsIter {
+            return FilterLhsIter{ .rules = rules };
         }
 
-        pub fn next(self: *LhsMatchIter) ?Rule {
+        pub fn next(self: *FilterLhsIter, filter_symbol: Symbol) ?Rule {
             while (self.idx < self.rules.len) {
                 const r = self.rules[self.idx];
-                self.idx += 1; // advance cursor
-                if (r.lhs.eqlTo(self.lhs))
-                    return r;
+                self.idx += 1;
+                if (r.lhs.eqlTo(filter_symbol)) return r;
             }
             return null;
         }
@@ -95,9 +93,9 @@ test "lhs_iter" {
         Rule.from(A, &.{a}),
     };
 
-    var iter = Rule.LhsMatchIter.from(rules, S);
-    try std.testing.expectEqual(rules[0], iter.next());
-    try std.testing.expectEqual(null, iter.next());
+    var iter = Rule.FilterLhsIter.from(rules);
+    try std.testing.expectEqual(rules[0], iter.next(S));
+    try std.testing.expectEqual(null, iter.next(S));
 }
 
 test "rule_hash_map" {
