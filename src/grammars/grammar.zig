@@ -63,10 +63,12 @@ pub const Grammar = struct {
 
     /// Start rule is the rule which lhs is the start symbol.
     /// Augmented grammars have a new start symbol S' and a new rule S' -> S.
+    ///
     /// Unaugmented grammars may have multiple rules with the same lhs as the start symbol.
     /// E.g. S -> A | B. which is basically two rules S -> A and S -> B.
+    ///
     /// It means we may not want to use this function for unaugmented grammars.
-    pub fn get_start_rule(self: *const Grammar) !Rule {
+    pub fn get_start_rule(self: *const Grammar) error{GrammarIsNotAugmented}!Rule {
         if (!self.is_augmented) {
             return error.GrammarIsNotAugmented;
         }

@@ -68,19 +68,17 @@ pub const Automaton = struct {
         const augmented_grammar = try builder.toAugmentedGrammar();
         self.grammar = augmented_grammar;
 
-        // Get the start rule
         const start_rule = try self.grammar.get_start_rule();
         const start_item = Item.from(start_rule);
-
-        // Compute the initial closure
         const initial_items = try self.CLOSURE(&.{start_item}, self.allocator);
         const initial_state = State.fromOwnedSlice(0, initial_items);
-        try self.states.append(initial_state);
 
-        try self.build_states();
+        try self.build_states(initial_state);
     }
 
-    fn build_states(self: *Automaton) !void {
+    fn build_states(self: *Automaton, initial_state: State) !void {
+        try self.states.append(initial_state);
+
         var state_hash_map = State.HashMap(void).init(self.allocator);
         defer state_hash_map.deinit();
 
@@ -137,10 +135,10 @@ pub const Automaton = struct {
     /// B -> • c
     fn CLOSURE(self: *Automaton, items: []const Item, allocator: std.mem.Allocator) std.mem.Allocator.Error![]Item {
         var closure_items = std.ArrayList(Item).init(allocator);
+        try closure_items.appendSlice(items);
+
         var seen_symbols = Symbol.HashMap(void).init(allocator);
         defer seen_symbols.deinit();
-
-        try closure_items.appendSlice(items);
 
         var item_iter = Item.IncompleteIter.from(&closure_items);
         while (item_iter.next()) |item| { // iter works as a work-list here
@@ -166,8 +164,8 @@ pub const Automaton = struct {
         var goto_items = std.ArrayList(Item).init(allocator);
         defer goto_items.deinit();
 
-        var item_iter = Item.FilterDotSymbolIter.from(items, symbol);
-        while (item_iter.next()) |item| {
+        var iter = Item.FilterDotSymbolIter.from(items);
+        while (iter.next(symbol)) |item| {
             // std.debug.print("{any}\n", .{item});
             const new_item = item.advance_dot_clone();
             try goto_items.append(new_item);
@@ -179,13 +177,17 @@ pub const Automaton = struct {
 
 test "automaton does not leak with non-arena allocator" {
     const allocator = std.testing.allocator;
-    const grammar = try grammars.examples.ExpressionGrammar(allocator);
+    const grammar = try grammars.examples.ShiftReduceGrammar(allocator);
     var automaton = Automaton.init(allocator, grammar);
     defer automaton.deinit();
     try automaton.build();
 
     for (automaton.states.items) |state| {
         std.debug.print("{s}", .{state});
+    }
+
+    for (automaton.transitions.values()) |transition| {
+        std.debug.print("{any}\n", .{transition});
     }
 }
 

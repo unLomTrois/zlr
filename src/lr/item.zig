@@ -105,8 +105,7 @@ pub const Item = struct {
     }
 
     /// Iterate over the *incomplete* items stored in a mutable `ArrayList`.
-    /// Because we keep a pointer to the list, items appended during the walk are
-    /// picked up automatically – perfect for the work-list pattern.
+    /// Take care to only append items to the list during the walk.
     pub const IncompleteIter = struct {
         list: *std.ArrayList(Item),
         idx: usize = 0,
@@ -125,22 +124,23 @@ pub const Item = struct {
         }
     };
 
-    /// Searches items that have the same dot symbol as the given symbol.
+    /// Iterate over the items which dot symbol is equal to the given filter symbol.
+    ///
+    /// Useful for GOTO set computation.
     pub const FilterDotSymbolIter = struct {
         items: []const Item,
-        symbol: Symbol,
         idx: usize = 0,
 
-        pub inline fn from(items: []const Item, symbol: Symbol) FilterDotSymbolIter {
-            return FilterDotSymbolIter{ .items = items, .symbol = symbol, .idx = 0 };
+        pub inline fn from(items: []const Item) FilterDotSymbolIter {
+            return FilterDotSymbolIter{ .items = items, .idx = 0 };
         }
 
-        pub fn next(self: *FilterDotSymbolIter) ?Item {
+        pub fn next(self: *FilterDotSymbolIter, filter_symbol: Symbol) ?Item {
             while (self.idx < self.items.len) {
                 const item = self.items[self.idx];
                 self.idx += 1;
                 const symbol = item.dot_symbol() orelse continue;
-                if (symbol.eqlTo(self.symbol)) return item;
+                if (symbol.eqlTo(filter_symbol)) return item;
             }
             return null;
         }
