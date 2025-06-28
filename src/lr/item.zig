@@ -132,15 +132,18 @@ pub const Item = struct {
         idx: usize = 0,
 
         pub inline fn from(items: []const Item) FilterDotSymbolIter {
-            return FilterDotSymbolIter{ .items = items, .idx = 0 };
+            return FilterDotSymbolIter{ .items = items };
         }
 
         pub fn next(self: *FilterDotSymbolIter, filter_symbol: Symbol) ?Item {
             while (self.idx < self.items.len) {
                 const item = self.items[self.idx];
                 self.idx += 1;
-                const symbol = item.dot_symbol() orelse continue;
-                if (symbol.eqlTo(filter_symbol)) return item;
+                if (item.dot_symbol()) |symbol| {
+                    if (symbol.eqlTo(filter_symbol)) {
+                        return item;
+                    }
+                }
             }
             return null;
         }
