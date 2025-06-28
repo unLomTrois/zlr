@@ -13,6 +13,7 @@ const utils = @import("../utils/iter.zig");
 
 pub const LR0Validator = @import("validator.zig").LR0Validator;
 
+// TODO: move to State?
 const Transition = struct {
     from: usize,
     to: usize,

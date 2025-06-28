@@ -10,6 +10,7 @@ const utils = @import("../utils/iter.zig");
 pub const State = struct {
     id: usize,
     items: []Item,
+    // TODO: add transition?
 
     /// Implies that items were allocated, or from toOwnedSlice.
     /// State owns items. Caller must deinit state.
