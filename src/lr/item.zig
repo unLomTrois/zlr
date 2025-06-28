@@ -111,38 +111,6 @@ pub const Item = struct {
         }
     }
 
-    /// Iterate over a slice and filter out items with unique dot symbols.
-    ///
-    /// Example:
-    /// ```
-    /// cycle -> • id + id
-    /// cycle -> • term
-    /// term -> • ( cycle )
-    /// term -> • id
-    /// ```
-    /// UniqueIter will emit: `id`, `term`, `(`
-    pub const UniqueIter = struct {
-        iter: *utils.Iter(Item),
-        array_hash_map: *Symbol.ArrayHashMap(void),
-
-        pub inline fn from(iter: *utils.Iter(Item), array_hash_map: *Symbol.ArrayHashMap(void)) UniqueIter {
-            return UniqueIter{
-                .iter = iter,
-                .array_hash_map = array_hash_map,
-            };
-        }
-
-        pub fn next(self: *UniqueIter) !?Item {
-            while (self.iter.next_if(Item.is_incomplete)) |item| {
-                const symbol = item.dot_symbol().?;
-                if (self.array_hash_map.contains(symbol)) continue;
-                try self.array_hash_map.put(symbol, {});
-                return item;
-            }
-            return null;
-        }
-    };
-
     pub const HashContext = struct {
         pub fn hash(_: HashContext, key: Item) u64 {
             const rule_hash = (Rule.HashContext{}).hash(key.rule);
@@ -191,30 +159,6 @@ test "item_format" {
         defer item = item.advance_dot_clone();
         try std.testing.expectEqualStrings(case, str);
     }
-}
-
-test "unique_iter" {
-    const S = Symbol.from("S");
-    const A = Symbol.from("A");
-    const B = Symbol.from("B");
-
-    // S -> A B
-    const rule = Rule.from(S, &[_]Symbol{ A, B });
-    const item = Item.from(rule);
-
-    const item2 = item.advance_dot_clone();
-
-    const items = &[_]Item{ item, item2 };
-
-    var symbol_array_hash_map = Symbol.ArrayHashMap(void).init(std.testing.allocator);
-    defer symbol_array_hash_map.deinit();
-
-    var iter = utils.Iter(Item).from(items);
-    var unique_iter = Item.UniqueIter.from(&iter, &symbol_array_hash_map);
-
-    try std.testing.expectEqual(item, try unique_iter.next()); // S -> • A B
-    try std.testing.expectEqual(item2, try unique_iter.next()); // S -> A • B
-    try std.testing.expectEqual(null, try unique_iter.next()); // S -> A B •
 }
 
 test "item_hash_map" {

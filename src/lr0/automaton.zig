@@ -80,28 +80,29 @@ pub const Automaton = struct {
     fn build_states(self: *Automaton, initial_state: State) !void {
         try self.states.append(initial_state);
 
-        var state_hash_map = State.HashMap(void).init(self.allocator);
-        defer state_hash_map.deinit();
+        var seen_states = State.HashMap(void).init(self.allocator);
+        defer seen_states.deinit();
 
         var i: usize = 1;
         var state_iter = utils.WorkListIter(State).from(&self.states);
         while (state_iter.next()) |state| {
-            var symbol_array_hash_map = Symbol.ArrayHashMap(void).init(self.allocator);
-            defer symbol_array_hash_map.deinit();
+            var seen_symbols = Symbol.ArrayHashMap(void).init(self.allocator);
+            defer seen_symbols.deinit();
 
             var iter = utils.Iter(Item).from(state.items);
-            var unique_iter = Item.UniqueIter.from(&iter, &symbol_array_hash_map);
-            while (try unique_iter.next()) |item| {
+            while (iter.next_if(Item.is_incomplete)) |item| {
                 const dot_symbol = item.dot_symbol().?;
+                if (seen_symbols.contains(dot_symbol)) continue;
+                try seen_symbols.put(dot_symbol, {});
 
                 const goto_items = try self.GOTO(state.items, dot_symbol, self.allocator);
-
                 const new_state = State.fromOwnedSlice(i, goto_items);
 
-                if (state_hash_map.contains(new_state)) {
+                if (seen_states.contains(new_state)) {
                     new_state.deinit(self.allocator);
                     continue;
                 }
+                try seen_states.put(new_state, {});
 
                 const transition_hash = self.calc_transition_hash(new_state, dot_symbol);
                 try self.transitions.put(transition_hash, .{
@@ -110,9 +111,7 @@ pub const Automaton = struct {
                     .symbol = dot_symbol,
                 });
 
-                try state_hash_map.put(new_state, {});
-
-                try self.states.append(new_state); // Automaton owns new_state and deinit it
+                try self.states.append(new_state);
 
                 i += 1;
             }
