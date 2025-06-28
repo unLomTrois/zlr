@@ -1,5 +1,6 @@
 const std = @import("std");
 const Symbol = @import("symbol.zig").Symbol;
+const utils = @import("../utils/iter.zig");
 
 /// Rule stands for a `production rule` in a context-free grammar
 ///
@@ -37,20 +38,19 @@ pub const Rule = struct {
         }
     }
 
+    pub const Iter = utils.Iter(Rule);
+
     /// Iterate over all rules whose `lhs` matches a given symbol.
     pub const FilterLhsIter = struct {
-        rules: []const Rule,
-        idx: usize = 0,
+        iter: *Rule.Iter,
 
-        pub inline fn from(rules: []const Rule) FilterLhsIter {
-            return FilterLhsIter{ .rules = rules };
+        pub inline fn from(iter: *Rule.Iter) FilterLhsIter {
+            return FilterLhsIter{ .iter = iter };
         }
 
         pub fn next(self: *FilterLhsIter, filter_symbol: Symbol) ?Rule {
-            while (self.idx < self.rules.len) {
-                const r = self.rules[self.idx];
-                self.idx += 1;
-                if (r.lhs.eqlTo(filter_symbol)) return r;
+            while (self.iter.next()) |rule| {
+                if (rule.lhs.eqlTo(filter_symbol)) return rule;
             }
             return null;
         }
@@ -93,9 +93,10 @@ test "lhs_iter" {
         Rule.from(A, &.{a}),
     };
 
-    var iter = Rule.FilterLhsIter.from(rules);
-    try std.testing.expectEqual(rules[0], iter.next(S));
-    try std.testing.expectEqual(null, iter.next(S));
+    var iter = Rule.Iter.from(rules);
+    var filter_iter = Rule.FilterLhsIter.from(&iter);
+    try std.testing.expectEqual(rules[0], filter_iter.next(S));
+    try std.testing.expectEqual(null, filter_iter.next(S));
 }
 
 test "rule_hash_map" {
