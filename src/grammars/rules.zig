@@ -38,22 +38,6 @@ pub const Rule = struct {
         }
     }
 
-    /// Iterate over all rules whose `lhs` matches a given symbol.
-    pub const FilterLhsIter = struct {
-        iter: *utils.Iter(Rule),
-
-        pub inline fn from(iter: *utils.Iter(Rule)) FilterLhsIter {
-            return FilterLhsIter{ .iter = iter };
-        }
-
-        pub fn next(self: *FilterLhsIter, filter_symbol: Symbol) ?Rule {
-            while (self.iter.next()) |rule| {
-                if (rule.lhs.eqlTo(filter_symbol)) return rule;
-            }
-            return null;
-        }
-    };
-
     pub const HashContext = struct {
         pub fn hash(_: HashContext, key: Rule) u64 {
             var hasher = std.hash.Wyhash.init(0);
@@ -79,22 +63,6 @@ test "rule" {
     const str = try std.fmt.allocPrint(std.testing.allocator, "{s}", .{rule});
     defer std.testing.allocator.free(str);
     try std.testing.expectEqualStrings("S -> A A", str);
-}
-
-test "lhs_iter" {
-    const S = Symbol.from("S");
-    const A = Symbol.from("A");
-    const a = Symbol.from("a");
-
-    const rules = &.{
-        Rule.from(S, &.{ A, a }),
-        Rule.from(A, &.{a}),
-    };
-
-    var iter = utils.Iter(Rule).from(rules);
-    var filter_iter = Rule.FilterLhsIter.from(&iter);
-    try std.testing.expectEqual(rules[0], filter_iter.next(S));
-    try std.testing.expectEqual(null, filter_iter.next(S));
 }
 
 test "rule_hash_map" {

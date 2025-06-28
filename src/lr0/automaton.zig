@@ -155,8 +155,8 @@ pub const Automaton = struct {
             try seen_symbols.put(dot_symbol, {});
 
             var iter = utils.Iter(Rule).from(self.grammar.rules);
-            var filter_iter = Rule.FilterLhsIter.from(&iter);
-            while (filter_iter.next(dot_symbol)) |rule| {
+            while (iter.next()) |rule| {
+                if (!rule.lhs.eqlTo(dot_symbol)) continue;
                 const new_item = Item.from(rule);
                 try closure_items.append(new_item);
             }
