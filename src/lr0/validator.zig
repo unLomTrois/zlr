@@ -14,7 +14,7 @@ pub const LR0Validator = struct {
     states: *std.ArrayList(State),
     idx: usize,
     allocator: std.mem.Allocator,
-    toLog: bool = true,
+    toLog: bool = false,
 
     pub fn from(states: *std.ArrayList(State), allocator: std.mem.Allocator) LR0Validator {
         return LR0Validator{ .states = states, .idx = 0, .allocator = allocator };
