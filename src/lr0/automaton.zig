@@ -83,7 +83,7 @@ pub const Automaton = struct {
         defer state_hash_map.deinit();
 
         var i: usize = 1;
-        var state_iter = State.ArrayListIter.from(&self.states);
+        var state_iter = State.WorkListIter.from(&self.states);
         while (state_iter.next()) |state| {
             var symbol_array_hash_map = Symbol.ArrayHashMap(void).init(self.allocator);
             defer symbol_array_hash_map.deinit();

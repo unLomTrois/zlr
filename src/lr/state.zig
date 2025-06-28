@@ -5,6 +5,7 @@ const Symbol = grammars.Symbol;
 const Rule = grammars.Rule;
 
 const Item = @import("item.zig").Item;
+const utils = @import("../utils/iter.zig");
 
 pub const State = struct {
     id: usize,
@@ -30,23 +31,7 @@ pub const State = struct {
         allocator.free(self.items);
     }
 
-    pub const ArrayListIter = struct {
-        list: *std.ArrayList(State),
-        idx: usize = 0,
-
-        pub inline fn from(list: *std.ArrayList(State)) ArrayListIter {
-            return ArrayListIter{ .list = list, .idx = 0 };
-        }
-
-        pub fn next(self: *ArrayListIter) ?State {
-            while (self.idx < self.list.items.len) {
-                const state = self.list.items[self.idx];
-                self.idx += 1;
-                return state;
-            }
-            return null;
-        }
-    };
+    pub const WorkListIter = utils.WorkListIter(State);
 
     pub fn format(self: *const State, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;
