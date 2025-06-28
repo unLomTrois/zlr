@@ -21,13 +21,6 @@ pub const State = struct {
         };
     }
 
-    pub fn initDupe(allocator: std.mem.Allocator, id: usize, items: []const Item) !State {
-        return State{
-            .id = id,
-            .items = try allocator.dupe(Item, items),
-        };
-    }
-
     pub fn deinit(self: *const State, allocator: std.mem.Allocator) void {
         allocator.free(self.items);
     }
@@ -66,15 +59,14 @@ pub const State = struct {
 test "state_hash_map" {
     const allocator = std.testing.allocator;
 
-    const state = try State.initDupe(allocator, 0, &.{
-        Item.from(
-            Rule.from(
-                Symbol.from("S"),
-                &.{Symbol.from("A")},
-            ),
-        ),
-    });
+    var items = std.ArrayList(Item).init(allocator);
+    defer items.deinit();
+    try items.append(Item.from(Rule.from(
+        Symbol.from("S"),
+        &.{Symbol.from("A")},
+    )));
 
+    const state = State.fromOwnedSlice(0, try items.toOwnedSlice());
     defer state.deinit(allocator);
 
     var hash_map = State.HashMap(void).init(allocator);
