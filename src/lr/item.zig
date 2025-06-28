@@ -6,26 +6,7 @@ const Rule = grammars.Rule;
 
 const Action = @import("action.zig").Action;
 
-fn Iter(comptime T: type) type {
-    return struct {
-        const Self = @This();
-        items: []const T,
-        idx: usize = 0,
-
-        inline fn from(items: []const T) Self {
-            return Self{ .items = items };
-        }
-
-        fn next(self: *Self) ?T {
-            while (self.idx < self.items.len) {
-                const item = self.items[self.idx];
-                self.idx += 1;
-                return item;
-            }
-            return null;
-        }
-    };
-}
+const utils = @import("../utils/iter.zig");
 
 /// Item represents an LR parsing item.
 /// It is a production rule with a dot position.
@@ -125,36 +106,35 @@ pub const Item = struct {
         }
     }
 
+    pub const WorkListIter = utils.WorkListIter(Item);
+
     /// Iterate over the *incomplete* items stored in a mutable `ArrayList`.
     /// Take care to only append items to the list during the walk.
     pub const IncompleteIter = struct {
-        list: *std.ArrayList(Item),
-        idx: usize = 0,
+        iter: *Item.WorkListIter,
 
-        pub inline fn from(list: *std.ArrayList(Item)) IncompleteIter {
-            return IncompleteIter{ .list = list, .idx = 0 };
+        pub inline fn from(iter: *Item.WorkListIter) IncompleteIter {
+            return IncompleteIter{ .iter = iter };
         }
 
         pub fn next(self: *IncompleteIter) ?Item {
-            while (self.idx < self.list.items.len) {
-                const item = self.list.items[self.idx];
-                self.idx += 1;
+            while (self.iter.next()) |item| {
                 if (!item.is_complete()) return item;
             }
             return null;
         }
     };
 
-    const ItemIter = Iter(Item);
+    pub const Iter = utils.Iter(Item);
 
     /// Iterate over the items which dot symbol is equal to the given filter symbol.
     ///
     /// Useful for GOTO set computation.
     pub const FilterDotSymbolIter = struct {
-        iter: ItemIter,
+        iter: *Item.Iter,
 
-        pub inline fn from(items: []const Item) FilterDotSymbolIter {
-            return FilterDotSymbolIter{ .iter = ItemIter.from(items) };
+        pub inline fn from(iter: *Item.Iter) FilterDotSymbolIter {
+            return FilterDotSymbolIter{ .iter = iter };
         }
 
         pub fn next(self: *FilterDotSymbolIter, filter_symbol: Symbol) ?Item {
@@ -167,13 +147,13 @@ pub const Item = struct {
     };
 
     pub const UniqueIter = struct {
+        iter: *Item.Iter,
         array_hash_map: *Symbol.ArrayHashMap(void),
-        iter: ItemIter,
 
-        pub fn init(items: []const Item, array_hash_map: *Symbol.ArrayHashMap(void)) UniqueIter {
+        pub inline fn from(iter: *Item.Iter, array_hash_map: *Symbol.ArrayHashMap(void)) UniqueIter {
             return UniqueIter{
+                .iter = iter,
                 .array_hash_map = array_hash_map,
-                .iter = ItemIter.from(items),
             };
         }
 
@@ -254,7 +234,8 @@ test "unique_iter" {
     var symbol_array_hash_map = Symbol.ArrayHashMap(void).init(std.testing.allocator);
     defer symbol_array_hash_map.deinit();
 
-    var unique_iter = Item.UniqueIter.init(items, &symbol_array_hash_map);
+    var iter = Item.Iter.from(items);
+    var unique_iter = Item.UniqueIter.from(&iter, &symbol_array_hash_map);
 
     try std.testing.expectEqual(item, try unique_iter.next()); // S -> • A B
     try std.testing.expectEqual(item2, try unique_iter.next()); // S -> A • B

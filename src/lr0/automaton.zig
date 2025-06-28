@@ -88,7 +88,8 @@ pub const Automaton = struct {
             var symbol_array_hash_map = Symbol.ArrayHashMap(void).init(self.allocator);
             defer symbol_array_hash_map.deinit();
 
-            var unique_iter = Item.UniqueIter.init(state.items, &symbol_array_hash_map);
+            var iter = Item.Iter.from(state.items);
+            var unique_iter = Item.UniqueIter.from(&iter, &symbol_array_hash_map);
             while (try unique_iter.next()) |item| {
                 const dot_symbol = item.dot_symbol() orelse continue;
 
@@ -142,7 +143,8 @@ pub const Automaton = struct {
         var seen_symbols = Symbol.HashMap(void).init(allocator);
         defer seen_symbols.deinit();
 
-        var item_iter = Item.IncompleteIter.from(&closure_items);
+        var work_list_iter = Item.WorkListIter.from(&closure_items);
+        var item_iter = Item.IncompleteIter.from(&work_list_iter);
         while (item_iter.next()) |item| { // iter works as a work-list here
             const dot_symbol = item.dot_symbol().?; // item is not complete, so dot symbol is always present
 
@@ -166,8 +168,9 @@ pub const Automaton = struct {
         var goto_items = std.ArrayList(Item).init(allocator);
         defer goto_items.deinit();
 
-        var iter = Item.FilterDotSymbolIter.from(items);
-        while (iter.next(symbol)) |item| {
+        var iter = Item.Iter.from(items);
+        var filter_iter = Item.FilterDotSymbolIter.from(&iter);
+        while (filter_iter.next(symbol)) |item| {
             // std.debug.print("{any}\n", .{item});
             const new_item = item.advance_dot_clone();
             try goto_items.append(new_item);
