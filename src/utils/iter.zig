@@ -37,22 +37,6 @@ pub fn Iter(comptime T: type) type {
             }
             return null;
         }
-
-        /// Iterate over the items which satisfy the predicate.
-        ///
-        /// Usage:
-        /// ```zig
-        /// var iter = Iter(i32).from(&numbers);
-        /// while (iter.next_if(is_even)) |item| {
-        ///     // ...
-        /// }
-        /// ```
-        pub fn next_if(self: *Self, predicate: fn (T) bool) ?T {
-            while (self.next()) |item| {
-                if (predicate(item)) return item;
-            }
-            return null;
-        }
     };
 }
 
@@ -98,24 +82,6 @@ pub fn WorkListIter(comptime T: type) type {
                 const item = self.list.items[self.idx];
                 self.idx += 1;
                 return item;
-            }
-            return null;
-        }
-
-        /// Iterate over the items which satisfy the predicate.
-        ///
-        /// Usage:
-        /// ```zig
-        /// const list = std.ArrayList(i32).init(allocator);
-        /// defer list.deinit();
-        /// var iter = WorkListIter(i32).from(&list);
-        /// while (iter.next_if(is_even)) |item| {
-        ///     // ...
-        /// }
-        /// ```
-        pub fn next_if(self: *Self, predicate: fn (T) bool) ?T {
-            while (self.next()) |item| {
-                if (predicate(item)) return item;
             }
             return null;
         }

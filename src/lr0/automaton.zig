@@ -89,13 +89,13 @@ pub const Automaton = struct {
         defer seen_states.deinit();
 
         var id_counter: usize = 1;
-        var state_iter = utils.WorkListIter(State).from(&self.states);
-        while (state_iter.next()) |state| {
+        var work_list = utils.WorkListIter(State).from(&self.states);
+        while (work_list.next()) |state| {
             var seen_symbols = Symbol.ArrayHashMap(void).init(self.allocator);
             defer seen_symbols.deinit();
 
-            var iter = utils.Iter(Item).from(state.items);
-            while (iter.next_if(Item.is_incomplete)) |item| {
+            for (state.items) |item| {
+                if (!item.is_incomplete()) continue;
                 const dot_symbol = item.dot_symbol().?;
                 if (seen_symbols.contains(dot_symbol)) continue;
                 try seen_symbols.put(dot_symbol, {});
@@ -150,18 +150,19 @@ pub const Automaton = struct {
         var seen_symbols = Symbol.HashMap(void).init(allocator);
         defer seen_symbols.deinit();
 
-        var work_list_iter = utils.WorkListIter(Item).from(&closure_items);
-        while (work_list_iter.next_if(Item.is_incomplete)) |item| { // iter works as a work-list here
+        var work_list = utils.WorkListIter(Item).from(&closure_items);
+        while (work_list.next()) |item| {
+            if (!item.is_incomplete()) continue;
+
             const dot_symbol = item.dot_symbol().?;
 
-            if (self.grammar.is_terminal(dot_symbol)) continue; // skip terminals, they don't have any productions
+            if (self.grammar.is_terminal(dot_symbol)) continue;
 
             if (seen_symbols.contains(dot_symbol)) continue;
 
             try seen_symbols.put(dot_symbol, {});
 
-            var iter = utils.Iter(Rule).from(self.grammar.rules);
-            while (iter.next()) |rule| {
+            for (self.grammar.rules) |rule| {
                 if (!rule.lhs.eqlTo(dot_symbol)) continue;
                 const new_item = Item.from(rule);
                 try closure_items.append(new_item);
@@ -175,8 +176,8 @@ pub const Automaton = struct {
         var goto_items = std.ArrayList(Item).init(allocator);
         defer goto_items.deinit();
 
-        var iter = utils.Iter(Item).from(items);
-        while (iter.next_if(Item.is_incomplete)) |item| {
+        for (items) |item| {
+            if (!item.is_incomplete()) continue;
             if (!item.dot_symbol().?.eqlTo(symbol)) continue;
             const new_item = item.advance_dot_clone();
             try goto_items.append(new_item);
