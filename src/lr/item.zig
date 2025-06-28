@@ -40,6 +40,10 @@ pub const Item = struct {
         return self.dot_pos >= self.rule.rhs.len;
     }
 
+    pub fn is_incomplete(self: Item) bool {
+        return !self.is_complete();
+    }
+
     pub fn is_accept_item(self: Item) bool {
         std.debug.assert(self.is_complete());
         return self.rule.lhs.eqlTo(Symbol.from("S'"));
@@ -48,6 +52,7 @@ pub const Item = struct {
     /// The dot symbol is the symbol after the dot.
     ///
     /// e.g. in "S -> A • B", the dot symbol is B
+    /// S -> A B • is complete, so dot symbol is null
     pub fn dot_symbol(self: *const Item) ?Symbol {
         if (self.is_complete()) {
             return null;
@@ -106,26 +111,8 @@ pub const Item = struct {
         }
     }
 
-    pub const WorkListIter = utils.WorkListIter(Item);
-
-    /// Iterate over the *incomplete* items stored in a mutable `ArrayList`.
-    /// Take care to only append items to the list during the walk.
-    pub const IncompleteIter = struct {
-        iter: *Item.WorkListIter,
-
-        pub inline fn from(iter: *Item.WorkListIter) IncompleteIter {
-            return IncompleteIter{ .iter = iter };
-        }
-
-        pub fn next(self: *IncompleteIter) ?Item {
-            while (self.iter.next()) |item| {
-                if (!item.is_complete()) return item;
-            }
-            return null;
-        }
-    };
-
     pub const Iter = utils.Iter(Item);
+    pub const WorkListIter = utils.WorkListIter(Item);
 
     /// Iterate over the items which dot symbol is equal to the given filter symbol.
     ///
@@ -138,14 +125,23 @@ pub const Item = struct {
         }
 
         pub fn next(self: *FilterDotSymbolIter, filter_symbol: Symbol) ?Item {
-            while (self.iter.next()) |item| {
-                const symbol = item.dot_symbol() orelse continue;
-                if (symbol.eqlTo(filter_symbol)) return item;
+            while (self.iter.next_if(Item.is_incomplete)) |item| {
+                if (item.dot_symbol().?.eqlTo(filter_symbol)) return item;
             }
             return null;
         }
     };
 
+    /// Iterate over a slice and filter out items with unique dot symbols.
+    ///
+    /// Example:
+    /// ```
+    /// cycle -> • id + id
+    /// cycle -> • term
+    /// term -> • ( cycle )
+    /// term -> • id
+    /// ```
+    /// UniqueIter will emit: `id`, `term`, `(`
     pub const UniqueIter = struct {
         iter: *Item.Iter,
         array_hash_map: *Symbol.ArrayHashMap(void),
@@ -158,8 +154,8 @@ pub const Item = struct {
         }
 
         pub fn next(self: *UniqueIter) !?Item {
-            while (self.iter.next()) |item| {
-                const symbol = item.dot_symbol() orelse continue;
+            while (self.iter.next_if(Item.is_incomplete)) |item| {
+                const symbol = item.dot_symbol().?;
                 if (self.array_hash_map.contains(symbol)) continue;
                 try self.array_hash_map.put(symbol, {});
                 return item;

@@ -91,7 +91,7 @@ pub const Automaton = struct {
             var iter = Item.Iter.from(state.items);
             var unique_iter = Item.UniqueIter.from(&iter, &symbol_array_hash_map);
             while (try unique_iter.next()) |item| {
-                const dot_symbol = item.dot_symbol() orelse continue;
+                const dot_symbol = item.dot_symbol().?;
 
                 const goto_items = try self.GOTO(state.items, dot_symbol, self.allocator);
 
@@ -144,9 +144,8 @@ pub const Automaton = struct {
         defer seen_symbols.deinit();
 
         var work_list_iter = Item.WorkListIter.from(&closure_items);
-        var item_iter = Item.IncompleteIter.from(&work_list_iter);
-        while (item_iter.next()) |item| { // iter works as a work-list here
-            const dot_symbol = item.dot_symbol().?; // item is not complete, so dot symbol is always present
+        while (work_list_iter.next_if(Item.is_incomplete)) |item| { // iter works as a work-list here
+            const dot_symbol = item.dot_symbol().?;
 
             if (self.grammar.is_terminal(dot_symbol)) continue; // skip terminals, they don't have any productions
 
