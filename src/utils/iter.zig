@@ -1,45 +1,5 @@
 const std = @import("std");
 
-/// Generic iterator over a slice of items.
-///
-/// Usage:
-/// ```zig
-/// const items = [_]YourType{ item1, item2, item3 };
-/// var iter = Iter(YourType).from(&items);
-/// while (iter.next()) |item| {
-///     // ...
-/// }
-/// ```
-pub fn Iter(comptime T: type) type {
-    return struct {
-        const Self = @This();
-        items: []const T,
-        idx: usize = 0,
-
-        pub inline fn from(items: []const T) Self {
-            return Self{ .items = items };
-        }
-
-        /// Iterate over the items.
-        ///
-        /// Usage:
-        /// ```zig
-        /// var iter = Iter(i32).from(&numbers);
-        /// while (iter.next()) |item| {
-        ///     // ...
-        /// }
-        /// ```
-        pub fn next(self: *Self) ?T {
-            while (self.idx < self.items.len) {
-                const item = self.items[self.idx];
-                self.idx += 1;
-                return item;
-            }
-            return null;
-        }
-    };
-}
-
 /// Iterate over a growing `ArrayList` of items.
 /// Take care to only append items to the list during the walk.
 ///
