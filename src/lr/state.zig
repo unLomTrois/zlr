@@ -30,22 +30,6 @@ pub const State = struct {
         allocator.free(self.items);
     }
 
-    const Iter = struct {
-        states: []State,
-        idx: usize = 0,
-
-        pub fn from(states: []State) Iter {
-            return Iter{ .states = states, .idx = 0 };
-        }
-
-        pub fn next(self: *Iter) ?State {
-            if (self.idx >= self.states.len) return null;
-            const state = self.states[self.idx];
-            self.idx += 1;
-            return state;
-        }
-    };
-
     pub const ArrayListIter = struct {
         list: *std.ArrayList(State),
         idx: usize = 0,
