@@ -6,6 +6,27 @@ const Rule = grammars.Rule;
 
 const Action = @import("action.zig").Action;
 
+fn Iter(comptime T: type) type {
+    return struct {
+        const Self = @This();
+        items: []const T,
+        idx: usize = 0,
+
+        inline fn from(items: []const T) Self {
+            return Self{ .items = items };
+        }
+
+        fn next(self: *Self) ?T {
+            while (self.idx < self.items.len) {
+                const item = self.items[self.idx];
+                self.idx += 1;
+                return item;
+            }
+            return null;
+        }
+    };
+}
+
 /// Item represents an LR parsing item.
 /// It is a production rule with a dot position.
 /// The dot position indicates the position of the next symbol to be parsed.
@@ -124,58 +145,44 @@ pub const Item = struct {
         }
     };
 
+    const ItemIter = Iter(Item);
+
     /// Iterate over the items which dot symbol is equal to the given filter symbol.
     ///
     /// Useful for GOTO set computation.
     pub const FilterDotSymbolIter = struct {
-        items: []const Item,
-        idx: usize = 0,
+        iter: ItemIter,
 
         pub inline fn from(items: []const Item) FilterDotSymbolIter {
-            return FilterDotSymbolIter{ .items = items };
+            return FilterDotSymbolIter{ .iter = ItemIter.from(items) };
         }
 
         pub fn next(self: *FilterDotSymbolIter, filter_symbol: Symbol) ?Item {
-            while (self.idx < self.items.len) {
-                const item = self.items[self.idx];
-                self.idx += 1;
-                if (item.dot_symbol()) |symbol| {
-                    if (symbol.eqlTo(filter_symbol)) {
-                        return item;
-                    }
-                }
+            while (self.iter.next()) |item| {
+                const symbol = item.dot_symbol() orelse continue;
+                if (symbol.eqlTo(filter_symbol)) return item;
             }
             return null;
         }
     };
 
     pub const UniqueIter = struct {
-        items: []const Item,
-        idx: usize = 0,
-        array_hash_map: Symbol.ArrayHashMap(void),
+        array_hash_map: *Symbol.ArrayHashMap(void),
+        iter: ItemIter,
 
-        pub fn init(allocator: std.mem.Allocator, items: []const Item) UniqueIter {
+        pub fn init(items: []const Item, array_hash_map: *Symbol.ArrayHashMap(void)) UniqueIter {
             return UniqueIter{
-                .items = items,
-                .idx = 0,
-                .array_hash_map = Symbol.ArrayHashMap(void).init(allocator),
+                .array_hash_map = array_hash_map,
+                .iter = ItemIter.from(items),
             };
         }
 
-        pub fn deinit(self: *UniqueIter) void {
-            self.array_hash_map.deinit();
-        }
-
         pub fn next(self: *UniqueIter) !?Item {
-            while (self.idx < self.items.len) {
-                const item = self.items[self.idx];
-                self.idx += 1;
+            while (self.iter.next()) |item| {
                 const symbol = item.dot_symbol() orelse continue;
-                if (!self.array_hash_map.contains(symbol)) {
-                    try self.array_hash_map.put(symbol, {});
-
-                    return item;
-                }
+                if (self.array_hash_map.contains(symbol)) continue;
+                try self.array_hash_map.put(symbol, {});
+                return item;
             }
             return null;
         }
@@ -244,8 +251,10 @@ test "unique_iter" {
 
     const items = &[_]Item{ item, item2 };
 
-    var unique_iter = Item.UniqueIter.init(std.testing.allocator, items);
-    defer unique_iter.deinit();
+    var symbol_array_hash_map = Symbol.ArrayHashMap(void).init(std.testing.allocator);
+    defer symbol_array_hash_map.deinit();
+
+    var unique_iter = Item.UniqueIter.init(items, &symbol_array_hash_map);
 
     try std.testing.expectEqual(item, try unique_iter.next()); // S -> • A B
     try std.testing.expectEqual(item2, try unique_iter.next()); // S -> A • B

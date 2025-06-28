@@ -85,8 +85,10 @@ pub const Automaton = struct {
         var i: usize = 1;
         var state_iter = State.ArrayListIter.from(&self.states);
         while (state_iter.next()) |state| {
-            var unique_iter = Item.UniqueIter.init(self.allocator, state.items);
-            defer unique_iter.deinit();
+            var symbol_array_hash_map = Symbol.ArrayHashMap(void).init(self.allocator);
+            defer symbol_array_hash_map.deinit();
+
+            var unique_iter = Item.UniqueIter.init(state.items, &symbol_array_hash_map);
             while (try unique_iter.next()) |item| {
                 const dot_symbol = item.dot_symbol() orelse continue;
 
