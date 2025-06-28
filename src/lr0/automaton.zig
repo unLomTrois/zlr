@@ -24,7 +24,11 @@ const Transition = struct {
         try writer.print("goto({}, {})\t-> {}", .{ self.from, self.symbol, self.to });
     }
 
-    const HashContext = struct {
+    pub fn hash(self: *const Transition) u64 {
+        return @as(u64, self.from) + (Symbol.HashContext{}).hash(self.symbol) ^ @as(u64, self.to);
+    }
+
+    pub const HashContext = struct {
         pub fn hash(_: HashContext, key: u64) u32 {
             return @truncate(key);
         }
@@ -33,9 +37,9 @@ const Transition = struct {
             return a == b;
         }
     };
-
-    pub fn HashMap(comptime V: type) type {
-        return std.ArrayHashMap(V, Transition, HashContext, true);
+    // TODO: refactor
+    pub fn ArrayHashMap(comptime K: type) type {
+        return std.ArrayHashMap(K, Transition, HashContext, true);
     }
 };
 
@@ -43,14 +47,14 @@ pub const Automaton = struct {
     allocator: std.mem.Allocator,
     grammar: Grammar,
     states: std.ArrayList(State),
-    transitions: Transition.HashMap(u64),
+    transitions: Transition.ArrayHashMap(u64),
 
     pub fn init(allocator: std.mem.Allocator, grammar: Grammar) Automaton {
         return Automaton{
             .allocator = allocator,
             .grammar = grammar,
             .states = std.ArrayList(State).init(allocator),
-            .transitions = Transition.HashMap(u64).init(allocator),
+            .transitions = Transition.ArrayHashMap(u64).init(allocator),
         };
     }
 
@@ -83,7 +87,7 @@ pub const Automaton = struct {
         var seen_states = State.HashMap(void).init(self.allocator);
         defer seen_states.deinit();
 
-        var i: usize = 1;
+        var id_counter: usize = 1;
         var state_iter = utils.WorkListIter(State).from(&self.states);
         while (state_iter.next()) |state| {
             var seen_symbols = Symbol.ArrayHashMap(void).init(self.allocator);
@@ -96,30 +100,32 @@ pub const Automaton = struct {
                 try seen_symbols.put(dot_symbol, {});
 
                 const goto_items = try self.GOTO(state.items, dot_symbol, self.allocator);
-                const new_state = State.fromOwnedSlice(i, goto_items);
+                const new_state = State.fromOwnedSlice(id_counter, goto_items);
 
-                if (seen_states.contains(new_state)) {
-                    new_state.deinit(self.allocator);
-                    continue;
-                }
-                try seen_states.put(new_state, {});
-
-                const transition_hash = self.calc_transition_hash(new_state, dot_symbol);
-                try self.transitions.put(transition_hash, .{
+                var transition = Transition{
                     .from = state.id,
                     .to = new_state.id,
                     .symbol = dot_symbol,
-                });
+                };
 
+                if (seen_states.getKey(new_state)) |existing_state| {
+                    transition.to = existing_state.id;
+                    const transition_hash = transition.hash();
+                    try self.transitions.put(transition_hash, transition);
+
+                    new_state.deinit(self.allocator);
+                    continue;
+                }
+
+                const transition_hash = transition.hash();
+                try self.transitions.put(transition_hash, transition);
+
+                try seen_states.put(new_state, {});
                 try self.states.append(new_state);
 
-                i += 1;
+                id_counter += 1;
             }
         }
-    }
-
-    fn calc_transition_hash(_: *Automaton, state: State, symbol: Symbol) u64 {
-        return (Symbol.HashContext{}).hash(symbol) ^ @as(u64, state.id);
     }
 
     /// CLOSURE computes the CLOSURE of a set of items.
@@ -181,7 +187,7 @@ pub const Automaton = struct {
 
 test "automaton does not leak with non-arena allocator" {
     const allocator = std.testing.allocator;
-    const grammar = try grammars.examples.ShiftReduceGrammar(allocator);
+    const grammar = try grammars.examples.ExpressionGrammar(allocator);
     var automaton = Automaton.init(allocator, grammar);
     defer automaton.deinit();
     try automaton.build();

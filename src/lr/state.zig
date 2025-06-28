@@ -40,7 +40,7 @@ pub const State = struct {
         }
     }
 
-    const HashContext = struct {
+    pub const HashContext = struct {
         pub fn hash(_: HashContext, key: State) u64 {
             var result: u64 = 0;
             for (key.items) |item| {
