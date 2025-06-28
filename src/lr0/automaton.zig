@@ -9,6 +9,7 @@ const Rule = grammars.Rule;
 const Item = @import("../lr/item.zig").Item;
 const State = @import("../lr/state.zig").State;
 const Action = @import("../lr/action.zig").Action;
+const utils = @import("../utils/iter.zig");
 
 pub const LR0Validator = @import("validator.zig").LR0Validator;
 
@@ -83,12 +84,12 @@ pub const Automaton = struct {
         defer state_hash_map.deinit();
 
         var i: usize = 1;
-        var state_iter = State.WorkListIter.from(&self.states);
+        var state_iter = utils.WorkListIter(State).from(&self.states);
         while (state_iter.next()) |state| {
             var symbol_array_hash_map = Symbol.ArrayHashMap(void).init(self.allocator);
             defer symbol_array_hash_map.deinit();
 
-            var iter = Item.Iter.from(state.items);
+            var iter = utils.Iter(Item).from(state.items);
             var unique_iter = Item.UniqueIter.from(&iter, &symbol_array_hash_map);
             while (try unique_iter.next()) |item| {
                 const dot_symbol = item.dot_symbol().?;
@@ -143,7 +144,7 @@ pub const Automaton = struct {
         var seen_symbols = Symbol.HashMap(void).init(allocator);
         defer seen_symbols.deinit();
 
-        var work_list_iter = Item.WorkListIter.from(&closure_items);
+        var work_list_iter = utils.WorkListIter(Item).from(&closure_items);
         while (work_list_iter.next_if(Item.is_incomplete)) |item| { // iter works as a work-list here
             const dot_symbol = item.dot_symbol().?;
 
@@ -153,7 +154,7 @@ pub const Automaton = struct {
 
             try seen_symbols.put(dot_symbol, {});
 
-            var iter = Rule.Iter.from(self.grammar.rules);
+            var iter = utils.Iter(Rule).from(self.grammar.rules);
             var filter_iter = Rule.FilterLhsIter.from(&iter);
             while (filter_iter.next(dot_symbol)) |rule| {
                 const new_item = Item.from(rule);
@@ -168,7 +169,7 @@ pub const Automaton = struct {
         var goto_items = std.ArrayList(Item).init(allocator);
         defer goto_items.deinit();
 
-        var iter = Item.Iter.from(items);
+        var iter = utils.Iter(Item).from(items);
         var filter_iter = Item.FilterDotSymbolIter.from(&iter);
         while (filter_iter.next(symbol)) |item| {
             // std.debug.print("{any}\n", .{item});

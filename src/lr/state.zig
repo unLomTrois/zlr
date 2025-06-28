@@ -31,8 +31,6 @@ pub const State = struct {
         allocator.free(self.items);
     }
 
-    pub const WorkListIter = utils.WorkListIter(State);
-
     pub fn format(self: *const State, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;
         _ = options;

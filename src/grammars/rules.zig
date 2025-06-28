@@ -38,13 +38,11 @@ pub const Rule = struct {
         }
     }
 
-    pub const Iter = utils.Iter(Rule);
-
     /// Iterate over all rules whose `lhs` matches a given symbol.
     pub const FilterLhsIter = struct {
-        iter: *Rule.Iter,
+        iter: *utils.Iter(Rule),
 
-        pub inline fn from(iter: *Rule.Iter) FilterLhsIter {
+        pub inline fn from(iter: *utils.Iter(Rule)) FilterLhsIter {
             return FilterLhsIter{ .iter = iter };
         }
 
@@ -93,7 +91,7 @@ test "lhs_iter" {
         Rule.from(A, &.{a}),
     };
 
-    var iter = Rule.Iter.from(rules);
+    var iter = utils.Iter(Rule).from(rules);
     var filter_iter = Rule.FilterLhsIter.from(&iter);
     try std.testing.expectEqual(rules[0], filter_iter.next(S));
     try std.testing.expectEqual(null, filter_iter.next(S));

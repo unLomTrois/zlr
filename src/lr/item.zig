@@ -111,16 +111,13 @@ pub const Item = struct {
         }
     }
 
-    pub const Iter = utils.Iter(Item);
-    pub const WorkListIter = utils.WorkListIter(Item);
-
     /// Iterate over the items which dot symbol is equal to the given filter symbol.
     ///
     /// Useful for GOTO set computation.
     pub const FilterDotSymbolIter = struct {
-        iter: *Item.Iter,
+        iter: *utils.Iter(Item),
 
-        pub inline fn from(iter: *Item.Iter) FilterDotSymbolIter {
+        pub inline fn from(iter: *utils.Iter(Item)) FilterDotSymbolIter {
             return FilterDotSymbolIter{ .iter = iter };
         }
 
@@ -143,10 +140,10 @@ pub const Item = struct {
     /// ```
     /// UniqueIter will emit: `id`, `term`, `(`
     pub const UniqueIter = struct {
-        iter: *Item.Iter,
+        iter: *utils.Iter(Item),
         array_hash_map: *Symbol.ArrayHashMap(void),
 
-        pub inline fn from(iter: *Item.Iter, array_hash_map: *Symbol.ArrayHashMap(void)) UniqueIter {
+        pub inline fn from(iter: *utils.Iter(Item), array_hash_map: *Symbol.ArrayHashMap(void)) UniqueIter {
             return UniqueIter{
                 .iter = iter,
                 .array_hash_map = array_hash_map,
@@ -230,7 +227,7 @@ test "unique_iter" {
     var symbol_array_hash_map = Symbol.ArrayHashMap(void).init(std.testing.allocator);
     defer symbol_array_hash_map.deinit();
 
-    var iter = Item.Iter.from(items);
+    var iter = utils.Iter(Item).from(items);
     var unique_iter = Item.UniqueIter.from(&iter, &symbol_array_hash_map);
 
     try std.testing.expectEqual(item, try unique_iter.next()); // S -> • A B
