@@ -170,9 +170,8 @@ pub const Automaton = struct {
         defer goto_items.deinit();
 
         var iter = utils.Iter(Item).from(items);
-        var filter_iter = Item.FilterDotSymbolIter.from(&iter);
-        while (filter_iter.next(symbol)) |item| {
-            // std.debug.print("{any}\n", .{item});
+        while (iter.next_if(Item.is_incomplete)) |item| {
+            if (!item.dot_symbol().?.eqlTo(symbol)) continue;
             const new_item = item.advance_dot_clone();
             try goto_items.append(new_item);
         }

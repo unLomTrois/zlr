@@ -111,24 +111,6 @@ pub const Item = struct {
         }
     }
 
-    /// Iterate over the items which dot symbol is equal to the given filter symbol.
-    ///
-    /// Useful for GOTO set computation.
-    pub const FilterDotSymbolIter = struct {
-        iter: *utils.Iter(Item),
-
-        pub inline fn from(iter: *utils.Iter(Item)) FilterDotSymbolIter {
-            return FilterDotSymbolIter{ .iter = iter };
-        }
-
-        pub fn next(self: *FilterDotSymbolIter, filter_symbol: Symbol) ?Item {
-            while (self.iter.next_if(Item.is_incomplete)) |item| {
-                if (item.dot_symbol().?.eqlTo(filter_symbol)) return item;
-            }
-            return null;
-        }
-    };
-
     /// Iterate over a slice and filter out items with unique dot symbols.
     ///
     /// Example:
