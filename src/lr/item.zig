@@ -40,10 +40,6 @@ pub const Item = struct {
         return self.dot_pos >= self.rule.rhs.len;
     }
 
-    pub fn is_incomplete(self: *const Item) bool {
-        return !self.is_complete();
-    }
-
     pub fn is_accept_item(self: *const Item) bool {
         std.debug.assert(self.is_complete());
         return self.rule.lhs.eql(&Symbol.from("S'"));

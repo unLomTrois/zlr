@@ -69,20 +69,21 @@ pub const Automaton = struct {
     }
 
     pub fn build(self: *Automaton) !void {
-        // Augment the grammar
+        try self.augment_grammar();
+        try self.build_states();
+    }
+
+    fn augment_grammar(self: *Automaton) !void {
         var builder = try GrammarBuilder.fromOwnedGrammar(self.allocator, self.grammar);
         const augmented_grammar = try builder.toAugmentedGrammar();
         self.grammar = augmented_grammar;
-
-        const start_rule = try self.grammar.get_start_rule();
-        const start_item = Item.from(start_rule);
-        const initial_items = try self.CLOSURE(&.{start_item}, self.allocator);
-        const initial_state = State.fromOwnedSlice(0, initial_items);
-
-        try self.build_states(initial_state);
     }
 
-    fn build_states(self: *Automaton, initial_state: State) !void {
+    fn build_states(self: *Automaton) !void {
+        const start_rule = try self.grammar.get_start_rule();
+        const start_item = Item.from(start_rule);
+        const initial_items = try self.CLOSURE(&.{start_item});
+        const initial_state = State.fromOwnedSlice(0, initial_items);
         try self.states.append(initial_state);
 
         var seen_states = State.HashMap(void).init(self.allocator);
@@ -95,12 +96,12 @@ pub const Automaton = struct {
             defer seen_symbols.deinit();
 
             for (state.items) |item| {
-                if (!item.is_incomplete()) continue;
+                if (item.is_complete()) continue;
                 const dot_symbol = item.dot_symbol().?;
                 if (seen_symbols.contains(dot_symbol)) continue;
                 try seen_symbols.put(dot_symbol, {});
 
-                const goto_items = try self.GOTO(state.items, dot_symbol, self.allocator);
+                const goto_items = try self.GOTO(state.items, &dot_symbol);
                 const new_state = State.fromOwnedSlice(id_counter, goto_items);
 
                 var transition = Transition{
@@ -143,16 +144,16 @@ pub const Automaton = struct {
     /// S -> • A a
     /// A -> • B b
     /// B -> • c
-    fn CLOSURE(self: *Automaton, items: []const Item, allocator: std.mem.Allocator) std.mem.Allocator.Error![]Item {
-        var closure_items = std.ArrayList(Item).init(allocator);
+    fn CLOSURE(self: *Automaton, items: []const Item) std.mem.Allocator.Error![]Item {
+        var closure_items = std.ArrayList(Item).init(self.allocator);
         try closure_items.appendSlice(items);
 
-        var seen_symbols = Symbol.HashMap(void).init(allocator);
+        var seen_symbols = Symbol.HashMap(void).init(self.allocator);
         defer seen_symbols.deinit();
 
         var work_list = utils.WorkListIter(Item).from(&closure_items);
         while (work_list.next()) |item| {
-            if (!item.is_incomplete()) continue;
+            if (item.is_complete()) continue;
 
             const dot_symbol = item.dot_symbol().?;
 
@@ -172,18 +173,18 @@ pub const Automaton = struct {
         return try closure_items.toOwnedSlice();
     }
 
-    fn GOTO(self: *Automaton, items: []const Item, symbol: Symbol, allocator: std.mem.Allocator) std.mem.Allocator.Error![]Item {
-        var goto_items = std.ArrayList(Item).init(allocator);
+    fn GOTO(self: *Automaton, items: []const Item, symbol: *const Symbol) std.mem.Allocator.Error![]Item {
+        var goto_items = std.ArrayList(Item).init(self.allocator);
         defer goto_items.deinit();
 
         for (items) |item| {
-            if (!item.is_incomplete()) continue;
-            if (!item.dot_symbol().?.eql(&symbol)) continue;
+            if (item.is_complete()) continue;
+            if (!item.dot_symbol().?.eql(symbol)) continue;
             const new_item = item.advance_dot_clone();
             try goto_items.append(new_item);
         }
 
-        return try self.CLOSURE(goto_items.items, allocator);
+        return try self.CLOSURE(goto_items.items);
     }
 };
 
