@@ -38,14 +38,18 @@ pub const Rule = struct {
         }
     }
 
+    pub fn hash(self: *const Rule) u64 {
+        var result: u64 = 0;
+        result ^= self.lhs.hash();
+        for (self.rhs) |symbol| {
+            result ^= symbol.hash();
+        }
+        return result;
+    }
+
     pub const HashContext = struct {
         pub fn hash(_: HashContext, key: Rule) u64 {
-            var hasher = std.hash.Wyhash.init(0);
-            hasher.update(key.lhs.name);
-            for (key.rhs) |symbol| {
-                hasher.update(symbol.name);
-            }
-            return hasher.final();
+            return key.hash();
         }
 
         pub fn eql(hash_context: HashContext, a: Rule, b: Rule) bool {

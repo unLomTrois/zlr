@@ -26,7 +26,7 @@ const Transition = struct {
     }
 
     pub fn hash(self: *const Transition) u64 {
-        return @as(u64, self.from) + (Symbol.HashContext{}).hash(self.symbol) ^ @as(u64, self.to);
+        return @as(u64, self.from) + self.symbol.hash() ^ @as(u64, self.to);
     }
 
     pub const HashContext = struct {
@@ -189,7 +189,7 @@ pub const Automaton = struct {
 
 test "automaton does not leak with non-arena allocator" {
     const allocator = std.testing.allocator;
-    const grammar = try grammars.examples.ExpressionGrammar(allocator);
+    const grammar = try grammars.examples.ShiftReduceGrammar(allocator);
     var automaton = Automaton.init(allocator, grammar);
     defer automaton.deinit();
     try automaton.build();

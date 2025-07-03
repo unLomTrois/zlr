@@ -111,10 +111,13 @@ pub const Item = struct {
         }
     }
 
+    pub fn hash(self: *const Item) u64 {
+        return self.rule.hash() ^ @as(u64, self.dot_pos) + @as(u64, @intFromEnum(self.action));
+    }
+
     pub const HashContext = struct {
         pub fn hash(_: HashContext, key: Item) u64 {
-            const rule_hash = (Rule.HashContext{}).hash(key.rule);
-            return rule_hash ^ @as(u64, key.dot_pos);
+            return key.hash();
         }
 
         pub fn eql(hash_context: HashContext, a: Item, b: Item) bool {

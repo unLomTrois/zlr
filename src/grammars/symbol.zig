@@ -53,9 +53,13 @@ pub const Symbol = struct {
         return self.eql(other);
     }
 
+    pub fn hash(self: *const Symbol) u64 {
+        return std.hash.Wyhash.hash(self.name.len, self.name);
+    }
+
     pub const HashContext = struct {
         pub fn hash(_: HashContext, key: Symbol) u64 {
-            return std.hash.Wyhash.hash(0, key.name);
+            return key.hash();
         }
 
         pub fn eql(_: HashContext, a: Symbol, b: Symbol) bool {

@@ -34,16 +34,17 @@ pub const State = struct {
         }
     }
 
+    pub fn hash(self: *const State) u64 { // id does not matter
+        var result: u64 = 0;
+        for (self.items) |item| {
+            result ^= item.hash();
+        }
+        return result;
+    }
+
     pub const HashContext = struct {
         pub fn hash(_: HashContext, key: State) u64 {
-            var result: u64 = 0;
-            for (key.items) |item| {
-                const item_hash = (Item.HashContext{}).hash(item);
-                if (item_hash == 0) {
-                    result = item_hash;
-                } else result ^= item_hash;
-            }
-            return result;
+            return key.hash();
         }
 
         pub fn eql(hash_context: HashContext, a: State, b: State) bool {
