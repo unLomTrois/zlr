@@ -59,7 +59,7 @@ pub const GrammarValidator = struct {
         // First make sure at least one rule has the start symbol on the LHS.
         const found_in_rules = blk: {
             for (grammar.rules) |rule| {
-                if (rule.lhs.eql(grammar.start_symbol)) {
+                if (rule.lhs.eql(&grammar.start_symbol)) {
                     break :blk true;
                 }
             }
@@ -72,7 +72,7 @@ pub const GrammarValidator = struct {
 
         const found_in_non_terminals = blk: {
             for (grammar.non_terminals) |non_terminal| {
-                if (non_terminal.eql(grammar.start_symbol)) {
+                if (non_terminal.eql(&grammar.start_symbol)) {
                     break :blk true;
                 }
             }

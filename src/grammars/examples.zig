@@ -139,7 +139,7 @@ test "augmented expression grammar" {
     const augmented_grammar = try builder.toAugmentedGrammar();
     defer augmented_grammar.deinit(allocator);
 
-    try std.testing.expect(augmented_grammar.start_symbol.eql(Symbol.from("S'")));
+    try std.testing.expect(augmented_grammar.start_symbol.eql(&Symbol.from("S'")));
     try std.testing.expectEqual(5, augmented_grammar.terminals.len);
     try std.testing.expectEqual(4, augmented_grammar.non_terminals.len);
     try std.testing.expectEqual(7, augmented_grammar.rules.len);
@@ -170,5 +170,5 @@ test "dangling pointer bug demonstration" {
     }
 
     // This assertion will likely fail due to corrupted memory
-    try std.testing.expect(augmented_grammar.start_symbol.eql(Symbol.from("S'")));
+    try std.testing.expect(augmented_grammar.start_symbol.eql(&Symbol.from("S'")));
 }

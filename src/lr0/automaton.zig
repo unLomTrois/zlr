@@ -156,14 +156,14 @@ pub const Automaton = struct {
 
             const dot_symbol = item.dot_symbol().?;
 
-            if (self.grammar.is_terminal(dot_symbol)) continue;
+            if (self.grammar.is_terminal(&dot_symbol)) continue;
 
             if (seen_symbols.contains(dot_symbol)) continue;
 
             try seen_symbols.put(dot_symbol, {});
 
             for (self.grammar.rules) |rule| {
-                if (!rule.lhs.eqlTo(dot_symbol)) continue;
+                if (!rule.lhs.eql(&dot_symbol)) continue;
                 const new_item = Item.from(rule);
                 try closure_items.append(new_item);
             }
@@ -178,7 +178,7 @@ pub const Automaton = struct {
 
         for (items) |item| {
             if (!item.is_incomplete()) continue;
-            if (!item.dot_symbol().?.eqlTo(symbol)) continue;
+            if (!item.dot_symbol().?.eql(&symbol)) continue;
             const new_item = item.advance_dot_clone();
             try goto_items.append(new_item);
         }

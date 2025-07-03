@@ -46,7 +46,7 @@ pub const Item = struct {
 
     pub fn is_accept_item(self: Item) bool {
         std.debug.assert(self.is_complete());
-        return self.rule.lhs.eqlTo(Symbol.from("S'"));
+        return self.rule.lhs.eql(&Symbol.from("S'"));
     }
 
     /// The dot symbol is the symbol after the dot.

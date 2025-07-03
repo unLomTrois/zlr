@@ -45,12 +45,8 @@ pub const Symbol = struct {
     }
 
     /// eql compares two symbols by their name.
-    pub fn eql(a: Symbol, b: Symbol) bool {
+    pub fn eql(a: *const Symbol, b: *const Symbol) bool {
         return std.mem.eql(u8, a.name, b.name);
-    }
-
-    pub fn eqlTo(self: *const Symbol, other: Symbol) bool {
-        return self.eql(other);
     }
 
     pub fn hash(self: *const Symbol) u64 {
@@ -63,7 +59,7 @@ pub const Symbol = struct {
         }
 
         pub fn eql(_: HashContext, a: Symbol, b: Symbol) bool {
-            return a.eql(b);
+            return a.eql(&b);
         }
     };
 
@@ -77,7 +73,7 @@ pub const Symbol = struct {
         }
 
         pub fn eql(_: ArrayHashContext, a: Symbol, b: Symbol, _: usize) bool {
-            return a.eql(b);
+            return a.eql(&b);
         }
     };
 
@@ -111,8 +107,8 @@ test "symbol_eql" {
     const symbol2 = try Symbol.fromAlloc(std.testing.allocator, "S");
     defer symbol2.deinit(std.testing.allocator);
 
-    try std.testing.expect(Symbol.eql(symbol1, symbol2)); // equivalent to:
-    try std.testing.expect(symbol1.eqlTo(symbol2));
+    try std.testing.expect(Symbol.eql(&symbol1, &symbol2)); // equivalent to:
+    try std.testing.expect(symbol1.eql(&symbol2));
 }
 
 test "symbol_fromAlloc" {
