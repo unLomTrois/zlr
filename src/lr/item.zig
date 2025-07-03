@@ -36,15 +36,15 @@ pub const Item = struct {
     /// The item is complete if the dot is at the end of the rule
     ///
     /// e.g. S -> A B •
-    pub fn is_complete(self: Item) bool {
+    pub fn is_complete(self: *const Item) bool {
         return self.dot_pos >= self.rule.rhs.len;
     }
 
-    pub fn is_incomplete(self: Item) bool {
+    pub fn is_incomplete(self: *const Item) bool {
         return !self.is_complete();
     }
 
-    pub fn is_accept_item(self: Item) bool {
+    pub fn is_accept_item(self: *const Item) bool {
         std.debug.assert(self.is_complete());
         return self.rule.lhs.eql(&Symbol.from("S'"));
     }
