@@ -1,4 +1,5 @@
 const std = @import("std");
+const assert = std.debug.assert;
 
 const grammars = @import("../grammars/grammar.zig");
 const Symbol = grammars.Symbol;
@@ -179,7 +180,10 @@ pub const Automaton = struct {
 
         for (items) |item| {
             if (item.is_complete()) continue;
+
+            assert(item.dot_symbol() != null);
             if (!item.dot_symbol().?.eql(symbol)) continue;
+
             const new_item = item.advance_dot_clone();
             try goto_items.append(new_item);
         }

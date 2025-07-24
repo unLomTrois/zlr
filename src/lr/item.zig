@@ -1,4 +1,5 @@
 const std = @import("std");
+const assert = std.debug.assert;
 
 const grammars = @import("../grammars/grammar.zig");
 const Symbol = grammars.Symbol;
@@ -41,7 +42,7 @@ pub const Item = struct {
     }
 
     pub fn is_accept_item(self: *const Item) bool {
-        std.debug.assert(self.is_complete());
+        assert(self.is_complete());
         return self.rule.lhs.eql(&Symbol.from("S'"));
     }
 
