@@ -88,15 +88,14 @@ pub const Automaton = struct {
             };
 
             var mutable_state = &self.states.items[state.id];
-            try mutable_state.addTransition(self.allocator, transition);
-
             if (seen_states.getKey(new_state)) |existing_state| {
-                try mutable_state.popTransition(self.allocator);
                 transition.to = existing_state.id;
                 try mutable_state.addTransition(self.allocator, transition);
 
                 new_state.deinit(self.allocator);
                 continue;
+            } else {
+                try mutable_state.addTransition(self.allocator, transition);
             }
 
             try seen_states.put(new_state, {});

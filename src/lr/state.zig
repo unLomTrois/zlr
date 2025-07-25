@@ -56,10 +56,6 @@ pub const State = struct {
         self.transitions[self.transitions.len - 1] = transition;
     }
 
-    pub fn popTransition(self: *State, allocator: std.mem.Allocator) !void {
-        self.transitions = try allocator.realloc(self.transitions, self.transitions.len - 1);
-    }
-
     pub const HashContext = struct {
         pub fn hash(_: HashContext, key: State) u64 {
             return key.hash();
