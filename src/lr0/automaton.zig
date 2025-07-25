@@ -14,49 +14,16 @@ const utils = @import("../utils/iter.zig");
 
 pub const LR0Validator = @import("validator.zig").LR0Validator;
 
-// TODO: move to State?
-const Transition = struct {
-    from: usize,
-    to: usize,
-    symbol: Symbol,
-
-    pub fn format(self: *const Transition, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
-        _ = fmt;
-        _ = options;
-        try writer.print("goto({}, {})\t-> {}", .{ self.from, self.symbol, self.to });
-    }
-
-    pub fn hash(self: *const Transition) u64 {
-        return @as(u64, self.from) + self.symbol.hash() ^ @as(u64, self.to);
-    }
-
-    pub const HashContext = struct {
-        pub fn hash(_: HashContext, key: u64) u32 {
-            return @truncate(key);
-        }
-
-        pub fn eql(_: HashContext, a: u64, b: u64, _: usize) bool {
-            return a == b;
-        }
-    };
-    // TODO: refactor
-    pub fn ArrayHashMap(comptime K: type) type {
-        return std.ArrayHashMap(K, Transition, HashContext, true);
-    }
-};
-
 pub const Automaton = struct {
     allocator: std.mem.Allocator,
     grammar: Grammar,
     states: std.ArrayList(State),
-    transitions: Transition.ArrayHashMap(u64),
 
     pub fn init(allocator: std.mem.Allocator, grammar: Grammar) Automaton {
         return Automaton{
             .allocator = allocator,
             .grammar = grammar,
             .states = std.ArrayList(State).init(allocator),
-            .transitions = Transition.ArrayHashMap(u64).init(allocator),
         };
     }
 
@@ -66,7 +33,6 @@ pub const Automaton = struct {
         }
         self.states.deinit();
         self.grammar.deinit(self.allocator);
-        self.transitions.deinit();
     }
 
     pub fn build(self: *Automaton) !void {
@@ -113,23 +79,16 @@ pub const Automaton = struct {
             const goto_items = try self.GOTO(state.items, &dot_symbol);
             const new_state = State.fromOwnedSlice(id_counter.*, goto_items);
 
-            var transition = Transition{
-                .from = state.id,
-                .to = new_state.id,
-                .symbol = dot_symbol,
-            };
+            var mutable_state = &self.states.items[state.id];
+            try mutable_state.addTransition(self.allocator, new_state.id);
 
             if (seen_states.getKey(new_state)) |existing_state| {
-                transition.to = existing_state.id;
-                const transition_hash = transition.hash();
-                try self.transitions.put(transition_hash, transition);
+                try mutable_state.popTransition(self.allocator);
+                try mutable_state.addTransition(self.allocator, existing_state.id);
 
                 new_state.deinit(self.allocator);
                 continue;
             }
-
-            const transition_hash = transition.hash();
-            try self.transitions.put(transition_hash, transition);
 
             try seen_states.put(new_state, {});
             try self.states.append(new_state);
@@ -210,9 +169,9 @@ test "automaton does not leak with non-arena allocator" {
         std.debug.print("{s}", .{state});
     }
 
-    for (automaton.transitions.values()) |transition| {
-        std.debug.print("{any}\n", .{transition});
-    }
+    // for (automaton.transitions.values()) |transition| {
+    //     std.debug.print("{any}\n", .{transition});
+    // }
 }
 
 test "root tests" {

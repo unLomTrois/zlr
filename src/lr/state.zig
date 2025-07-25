@@ -10,7 +10,7 @@ const utils = @import("../utils/iter.zig");
 pub const State = struct {
     id: usize,
     items: []Item,
-    // TODO: add transition?
+    transitions: []usize, // indices of next states
 
     /// Implies that items were allocated, or from toOwnedSlice.
     /// State owns items. Caller must deinit state.
@@ -18,11 +18,13 @@ pub const State = struct {
         return State{
             .id = id,
             .items = items,
+            .transitions = &.{},
         };
     }
 
     pub fn deinit(self: *const State, allocator: std.mem.Allocator) void {
         allocator.free(self.items);
+        allocator.free(self.transitions);
     }
 
     pub fn format(self: *const State, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
@@ -32,6 +34,9 @@ pub const State = struct {
         for (self.items) |item| {
             try writer.print("  {any}\n", .{item});
         }
+        for (self.transitions) |transition| {
+            try writer.print("  goto({d})\n", .{transition});
+        }
     }
 
     pub fn hash(self: *const State) u64 { // id does not matter
@@ -40,6 +45,19 @@ pub const State = struct {
             result ^= item.hash();
         }
         return result;
+    }
+
+    pub fn addTransition(self: *State, allocator: std.mem.Allocator, next_state_id: usize) !void {
+        if (self.transitions.len == 0) {
+            self.transitions = try allocator.alloc(usize, 1);
+        } else {
+            self.transitions = try allocator.realloc(self.transitions, self.transitions.len + 1);
+        }
+        self.transitions[self.transitions.len - 1] = next_state_id;
+    }
+
+    pub fn popTransition(self: *State, allocator: std.mem.Allocator) !void {
+        self.transitions = try allocator.realloc(self.transitions, self.transitions.len - 1);
     }
 
     pub const HashContext = struct {
