@@ -61,14 +61,13 @@ pub const Automaton = struct {
         var seen_states = State.HashMap(void).init(self.allocator);
         defer seen_states.deinit();
 
-        var id_counter: usize = 1;
         var work_list = utils.WorkListIter(State).from(&self.states);
         while (work_list.next()) |state| {
-            try self.build_state(&state, &seen_states, &id_counter);
+            try self.build_state(&state, &seen_states);
         }
     }
 
-    fn build_state(self: *Automaton, state: *const State, seen_states: *State.HashMap(void), id_counter: *usize) !void {
+    fn build_state(self: *Automaton, state: *const State, seen_states: *State.HashMap(void)) !void {
         var seen_symbols = Symbol.ArrayHashMap(void).init(self.allocator);
         defer seen_symbols.deinit();
 
@@ -79,7 +78,8 @@ pub const Automaton = struct {
             try seen_symbols.put(dot_symbol, {});
 
             const goto_items = try self.GOTO(state.items, &dot_symbol);
-            const new_state = State.fromOwnedSlice(id_counter.*, goto_items);
+            const new_id: usize = self.states.getLast().id + 1;
+            const new_state = State.fromOwnedSlice(new_id, goto_items);
 
             var transition = Transition{
                 .from = state.id,
@@ -101,8 +101,6 @@ pub const Automaton = struct {
 
             try seen_states.put(new_state, {});
             try self.states.append(new_state);
-
-            id_counter.* += 1;
         }
     }
 
