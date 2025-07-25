@@ -71,6 +71,7 @@ pub const Automaton = struct {
 
     pub fn build(self: *Automaton) !void {
         try self.augment_grammar();
+        try self.init_states();
         try self.build_states();
     }
 
@@ -80,54 +81,60 @@ pub const Automaton = struct {
         self.grammar = augmented_grammar;
     }
 
-    fn build_states(self: *Automaton) !void {
+    fn init_states(self: *Automaton) !void {
         const start_rule = try self.grammar.get_start_rule();
         const start_item = Item.from(start_rule);
         const initial_items = try self.CLOSURE(&.{start_item});
         const initial_state = State.fromOwnedSlice(0, initial_items);
         try self.states.append(initial_state);
+    }
 
+    fn build_states(self: *Automaton) !void {
         var seen_states = State.HashMap(void).init(self.allocator);
         defer seen_states.deinit();
 
         var id_counter: usize = 1;
         var work_list = utils.WorkListIter(State).from(&self.states);
         while (work_list.next()) |state| {
-            var seen_symbols = Symbol.ArrayHashMap(void).init(self.allocator);
-            defer seen_symbols.deinit();
+            try self.build_state(&state, &seen_states, &id_counter);
+        }
+    }
 
-            for (state.items) |item| {
-                if (item.is_complete()) continue;
-                const dot_symbol = item.dot_symbol().?;
-                if (seen_symbols.contains(dot_symbol)) continue;
-                try seen_symbols.put(dot_symbol, {});
+    fn build_state(self: *Automaton, state: *const State, seen_states: *State.HashMap(void), id_counter: *usize) !void {
+        var seen_symbols = Symbol.ArrayHashMap(void).init(self.allocator);
+        defer seen_symbols.deinit();
 
-                const goto_items = try self.GOTO(state.items, &dot_symbol);
-                const new_state = State.fromOwnedSlice(id_counter, goto_items);
+        for (state.items) |item| {
+            if (item.is_complete()) continue;
+            const dot_symbol = item.dot_symbol().?;
+            if (seen_symbols.contains(dot_symbol)) continue;
+            try seen_symbols.put(dot_symbol, {});
 
-                var transition = Transition{
-                    .from = state.id,
-                    .to = new_state.id,
-                    .symbol = dot_symbol,
-                };
+            const goto_items = try self.GOTO(state.items, &dot_symbol);
+            const new_state = State.fromOwnedSlice(id_counter.*, goto_items);
 
-                if (seen_states.getKey(new_state)) |existing_state| {
-                    transition.to = existing_state.id;
-                    const transition_hash = transition.hash();
-                    try self.transitions.put(transition_hash, transition);
+            var transition = Transition{
+                .from = state.id,
+                .to = new_state.id,
+                .symbol = dot_symbol,
+            };
 
-                    new_state.deinit(self.allocator);
-                    continue;
-                }
-
+            if (seen_states.getKey(new_state)) |existing_state| {
+                transition.to = existing_state.id;
                 const transition_hash = transition.hash();
                 try self.transitions.put(transition_hash, transition);
 
-                try seen_states.put(new_state, {});
-                try self.states.append(new_state);
-
-                id_counter += 1;
+                new_state.deinit(self.allocator);
+                continue;
             }
+
+            const transition_hash = transition.hash();
+            try self.transitions.put(transition_hash, transition);
+
+            try seen_states.put(new_state, {});
+            try self.states.append(new_state);
+
+            id_counter.* += 1;
         }
     }
 
