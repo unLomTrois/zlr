@@ -5,12 +5,12 @@ const Symbol = grammars.Symbol;
 const Rule = grammars.Rule;
 
 const Item = @import("item.zig").Item;
-const utils = @import("../utils/iter.zig");
+const Transition = @import("transition.zig").Transition;
 
 pub const State = struct {
     id: usize,
     items: []Item,
-    transitions: []usize, // indices of next states
+    transitions: []Transition,
 
     /// Implies that items were allocated, or from toOwnedSlice.
     /// State owns items. Caller must deinit state.
@@ -35,7 +35,7 @@ pub const State = struct {
             try writer.print("  {any}\n", .{item});
         }
         for (self.transitions) |transition| {
-            try writer.print("  goto({d})\n", .{transition});
+            try writer.print("  {any}\n", .{transition});
         }
     }
 
@@ -47,13 +47,13 @@ pub const State = struct {
         return result;
     }
 
-    pub fn addTransition(self: *State, allocator: std.mem.Allocator, next_state_id: usize) !void {
+    pub fn addTransition(self: *State, allocator: std.mem.Allocator, transition: Transition) !void {
         if (self.transitions.len == 0) {
-            self.transitions = try allocator.alloc(usize, 1);
+            self.transitions = try allocator.alloc(Transition, 1);
         } else {
             self.transitions = try allocator.realloc(self.transitions, self.transitions.len + 1);
         }
-        self.transitions[self.transitions.len - 1] = next_state_id;
+        self.transitions[self.transitions.len - 1] = transition;
     }
 
     pub fn popTransition(self: *State, allocator: std.mem.Allocator) !void {

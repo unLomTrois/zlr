@@ -1,6 +1,8 @@
 const std = @import("std");
 const assert = std.debug.assert;
 
+const utils = @import("../utils/iter.zig");
+
 const grammars = @import("../grammars/grammar.zig");
 const Symbol = grammars.Symbol;
 const Grammar = grammars.Grammar;
@@ -10,7 +12,7 @@ const Rule = grammars.Rule;
 const Item = @import("../lr/item.zig").Item;
 const State = @import("../lr/state.zig").State;
 const Action = @import("../lr/action.zig").Action;
-const utils = @import("../utils/iter.zig");
+const Transition = @import("../lr/transition.zig").Transition;
 
 pub const LR0Validator = @import("validator.zig").LR0Validator;
 
@@ -79,12 +81,19 @@ pub const Automaton = struct {
             const goto_items = try self.GOTO(state.items, &dot_symbol);
             const new_state = State.fromOwnedSlice(id_counter.*, goto_items);
 
+            var transition = Transition{
+                .from = state.id,
+                .to = new_state.id,
+                .symbol = dot_symbol,
+            };
+
             var mutable_state = &self.states.items[state.id];
-            try mutable_state.addTransition(self.allocator, new_state.id);
+            try mutable_state.addTransition(self.allocator, transition);
 
             if (seen_states.getKey(new_state)) |existing_state| {
                 try mutable_state.popTransition(self.allocator);
-                try mutable_state.addTransition(self.allocator, existing_state.id);
+                transition.to = existing_state.id;
+                try mutable_state.addTransition(self.allocator, transition);
 
                 new_state.deinit(self.allocator);
                 continue;
