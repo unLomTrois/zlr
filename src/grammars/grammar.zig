@@ -29,6 +29,12 @@ pub const StaticGrammar = struct {
             .rules = rules,
         };
     }
+
+    pub fn format(self: *const StaticGrammar, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+        for (self.rules) |rule| {
+            try writer.print("{any}\n", .{rule});
+        }
+    }
 };
 
 /// Grammar – owning, immutable. Produced by `GrammarBuilder`; must be
@@ -61,6 +67,27 @@ pub const Grammar = struct {
         };
     }
 
+    pub fn find_rule_idx(self: *const Grammar, rule: Rule) ?usize {
+        for (self.rules, 0..) |r, i| {
+            if ((Rule.HashContext{}).eql(r, rule)) return i;
+        }
+        return null;
+    }
+
+    pub fn get_terminal_id(self: *const Grammar, symbol: Symbol) ?usize {
+        for (self.terminals, 0..) |s, i| {
+            if (s.eql(&symbol)) return i;
+        }
+        return null;
+    }
+
+    pub fn get_non_terminal_id(self: *const Grammar, symbol: Symbol) ?usize {
+        for (self.non_terminals, 0..) |s, i| {
+            if (s.eql(&symbol)) return i;
+        }
+        return null;
+    }
+
     /// Start rule is the rule which lhs is the start symbol.
     /// Augmented grammars have a new start symbol S' and a new rule S' -> S.
     ///
@@ -83,6 +110,11 @@ pub const Grammar = struct {
             }
         }
         return false;
+    }
+
+    pub fn format(self: *const Grammar, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+        try writer.print("(augmented: {any})\n", .{self.is_augmented});
+        try writer.print("{any}", .{self.asStaticView()});
     }
 };
 

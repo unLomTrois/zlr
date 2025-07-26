@@ -16,6 +16,8 @@ const Transition = @import("../lr/transition.zig").Transition;
 
 pub const LR0Validator = @import("validator.zig").LR0Validator;
 
+pub const ParsingTable = @import("../lr/parsing_table.zig").ParsingTable;
+
 pub const Automaton = struct {
     allocator: std.mem.Allocator,
     grammar: Grammar,
@@ -170,6 +172,8 @@ test "automaton does not leak with non-arena allocator" {
     var automaton = Automaton.init(allocator, grammar);
     defer automaton.deinit();
     try automaton.build();
+
+    std.debug.print("Grammar: {s}\n", .{automaton.grammar});
 
     for (automaton.states.items) |state| {
         std.debug.print("{s}", .{state});

@@ -53,21 +53,25 @@ pub const Symbol = struct {
         return std.hash.Wyhash.hash(self.name.len, self.name);
     }
 
-    pub const HashContext = struct {
-        pub fn hash(_: HashContext, key: Symbol) u64 {
+    pub fn is_augmented(self: *const Symbol) bool {
+        return std.mem.eql(u8, self.name, "S'");
+    }
+
+    pub const HashMapContext = struct {
+        pub fn hash(_: HashMapContext, key: Symbol) u64 {
             return key.hash();
         }
 
-        pub fn eql(_: HashContext, a: Symbol, b: Symbol) bool {
+        pub fn eql(_: HashMapContext, a: Symbol, b: Symbol) bool {
             return a.eql(&b);
         }
     };
 
     pub fn HashMap(comptime V: type) type {
-        return std.HashMap(Symbol, V, HashContext, std.hash_map.default_max_load_percentage);
+        return std.HashMap(Symbol, V, HashMapContext, std.hash_map.default_max_load_percentage);
     }
 
-    const ArrayHashContext = struct {
+    pub const ArrayHashContext = struct {
         pub fn hash(_: ArrayHashContext, key: Symbol) u32 {
             return std.hash.cityhash.CityHash32.hash(key.name);
         }

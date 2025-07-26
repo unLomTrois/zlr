@@ -43,7 +43,7 @@ pub const Item = struct {
 
     pub fn is_accept_item(self: *const Item) bool {
         assert(self.is_complete());
-        return self.rule.lhs.eql(&Symbol.from("S'"));
+        return self.rule.lhs.is_augmented();
     }
 
     /// The dot symbol is the symbol after the dot.
