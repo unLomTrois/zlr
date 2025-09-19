@@ -27,15 +27,13 @@ pub const State = struct {
         allocator.free(self.transitions);
     }
 
-    pub fn format(self: *const State, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
-        _ = fmt;
-        _ = options;
+    pub fn format(self: *const State, writer: *std.io.Writer) !void {
         try writer.print("State {d}\n", .{self.id});
         for (self.items) |item| {
-            try writer.print("  {any}\n", .{item});
+            try writer.print("  {f}\n", .{item});
         }
         for (self.transitions) |transition| {
-            try writer.print("  {any}\n", .{transition});
+            try writer.print("  {f}\n", .{transition});
         }
     }
 
@@ -74,14 +72,14 @@ pub const State = struct {
 test "state_hash_map" {
     const allocator = std.testing.allocator;
 
-    var items = std.ArrayList(Item).init(allocator);
-    defer items.deinit();
-    try items.append(Item.from(Rule.from(
+    var items = std.ArrayList(Item).empty;
+    defer items.deinit(allocator);
+    try items.append(allocator, Item.from(Rule.from(
         Symbol.from("S"),
         &.{Symbol.from("A")},
     )));
 
-    const state = State.fromOwnedSlice(0, try items.toOwnedSlice());
+    const state = State.fromOwnedSlice(0, try items.toOwnedSlice(allocator));
     defer state.deinit(allocator);
 
     var hash_map = State.HashMap(void).init(allocator);

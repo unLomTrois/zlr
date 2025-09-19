@@ -30,9 +30,9 @@ pub const StaticGrammar = struct {
         };
     }
 
-    pub fn format(self: *const StaticGrammar, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(self: *const StaticGrammar, writer: *std.io.Writer) !void {
         for (self.rules) |rule| {
-            try writer.print("{any}\n", .{rule});
+            try writer.print("{f}\n", .{rule});
         }
     }
 };
@@ -112,9 +112,9 @@ pub const Grammar = struct {
         return false;
     }
 
-    pub fn format(self: *const Grammar, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(self: *const Grammar, writer: *std.io.Writer) !void {
         try writer.print("(augmented: {any})\n", .{self.is_augmented});
-        try writer.print("{any}", .{self.asStaticView()});
+        try writer.print("{f}", .{self.asStaticView()});
     }
 };
 
@@ -142,9 +142,9 @@ pub const GrammarBuilder = struct {
 
         return GrammarBuilder{
             .allocator = allocator,
-            .terminals = std.ArrayList(Symbol).fromOwnedSlice(allocator, terminals),
-            .non_terminals = std.ArrayList(Symbol).fromOwnedSlice(allocator, non_terminals),
-            .rules = std.ArrayList(Rule).fromOwnedSlice(allocator, rules),
+            .terminals = std.ArrayList(Symbol).fromOwnedSlice(terminals),
+            .non_terminals = std.ArrayList(Symbol).fromOwnedSlice(non_terminals),
+            .rules = std.ArrayList(Rule).fromOwnedSlice(rules),
             .start_symbol = grammar.start_symbol,
         };
     }
@@ -158,21 +158,21 @@ pub const GrammarBuilder = struct {
     ) error{OutOfMemory}!GrammarBuilder {
         return GrammarBuilder{
             .allocator = allocator,
-            .terminals = std.ArrayList(Symbol).fromOwnedSlice(allocator, grammar.terminals),
-            .non_terminals = std.ArrayList(Symbol).fromOwnedSlice(allocator, grammar.non_terminals),
-            .rules = std.ArrayList(Rule).fromOwnedSlice(allocator, grammar.rules),
+            .terminals = std.ArrayList(Symbol).fromOwnedSlice(grammar.terminals),
+            .non_terminals = std.ArrayList(Symbol).fromOwnedSlice(grammar.non_terminals),
+            .rules = std.ArrayList(Rule).fromOwnedSlice(grammar.rules),
             .start_symbol = grammar.start_symbol,
         };
     }
 
-    pub fn deinit(self: *const GrammarBuilder) void {
+    pub fn deinit(self: *GrammarBuilder) void {
         if (self.was_moved) {
             std.log.warn("GrammarBuilder data was moved, no need to deinit\n", .{});
         }
 
-        self.terminals.deinit();
-        self.non_terminals.deinit();
-        self.rules.deinit();
+        self.terminals.deinit(self.allocator);
+        self.non_terminals.deinit(self.allocator);
+        self.rules.deinit(self.allocator);
     }
 
     /// Returns a new static grammar. View does not own anything.
@@ -190,9 +190,9 @@ pub const GrammarBuilder = struct {
     pub fn toOwnedGrammar(self: *GrammarBuilder) !Grammar {
         return Grammar{
             .start_symbol = self.start_symbol,
-            .terminals = try self.terminals.toOwnedSlice(),
-            .non_terminals = try self.non_terminals.toOwnedSlice(),
-            .rules = try self.rules.toOwnedSlice(),
+            .terminals = try self.terminals.toOwnedSlice(self.allocator),
+            .non_terminals = try self.non_terminals.toOwnedSlice(self.allocator),
+            .rules = try self.rules.toOwnedSlice(self.allocator),
         };
     }
 
@@ -203,20 +203,20 @@ pub const GrammarBuilder = struct {
         self.was_moved = true;
 
         const s_prime = Symbol.from("S'");
-        try self.non_terminals.insert(0, s_prime);
+        try self.non_terminals.insert(self.allocator, 0, s_prime);
 
         const augmented_rule = Rule.from(s_prime, try Symbol.fromSlice(
             self.allocator,
             &.{self.start_symbol},
         ));
-        try self.rules.insert(0, augmented_rule);
+        try self.rules.insert(self.allocator, 0, augmented_rule);
         self.start_symbol = s_prime;
 
         return Grammar{
             .start_symbol = self.start_symbol,
-            .terminals = try self.terminals.toOwnedSlice(),
-            .non_terminals = try self.non_terminals.toOwnedSlice(),
-            .rules = try self.rules.toOwnedSlice(),
+            .terminals = try self.terminals.toOwnedSlice(self.allocator),
+            .non_terminals = try self.non_terminals.toOwnedSlice(self.allocator),
+            .rules = try self.rules.toOwnedSlice(self.allocator),
             .is_augmented = true,
         };
     }
@@ -259,12 +259,12 @@ test "expression grammar" {
 
     const grammar = try examples.ExpressionGrammar(allocator);
 
-    std.log.info("expression grammar:\n{any}\n", .{grammar});
+    std.log.info("expression grammar:\n{f}\n", .{grammar});
 
     var builder = try GrammarBuilder.fromOwnedGrammar(allocator, grammar);
     const augmented_grammar = try builder.toAugmentedGrammar();
 
-    std.log.info("augmented grammar:\n{any}\n", .{augmented_grammar});
+    std.log.info("augmented grammar:\n{f}\n", .{augmented_grammar});
 }
 
 test "grammar validation" {

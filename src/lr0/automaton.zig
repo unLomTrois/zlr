@@ -27,7 +27,7 @@ pub const Automaton = struct {
         return Automaton{
             .allocator = allocator,
             .grammar = grammar,
-            .states = std.ArrayList(State).init(allocator),
+            .states = std.ArrayList(State).empty,
         };
     }
 
@@ -35,7 +35,7 @@ pub const Automaton = struct {
         for (self.states.items) |state| {
             state.deinit(self.allocator);
         }
-        self.states.deinit();
+        self.states.deinit(self.allocator);
         self.grammar.deinit(self.allocator);
     }
 
@@ -56,7 +56,7 @@ pub const Automaton = struct {
         const start_item = Item.from(start_rule);
         const initial_items = try self.CLOSURE(&.{start_item});
         const initial_state = State.fromOwnedSlice(0, initial_items);
-        try self.states.append(initial_state);
+        try self.states.append(self.allocator, initial_state);
     }
 
     fn build_states(self: *Automaton) !void {
@@ -101,7 +101,7 @@ pub const Automaton = struct {
             }
 
             try seen_states.put(new_state, {});
-            try self.states.append(new_state);
+            try self.states.append(self.allocator, new_state);
         }
     }
 
@@ -120,8 +120,8 @@ pub const Automaton = struct {
     /// A -> • B b
     /// B -> • c
     fn CLOSURE(self: *Automaton, items: []const Item) std.mem.Allocator.Error![]Item {
-        var closure_items = std.ArrayList(Item).init(self.allocator);
-        try closure_items.appendSlice(items);
+        var closure_items = std.ArrayList(Item).empty;
+        try closure_items.appendSlice(self.allocator, items);
 
         var seen_symbols = Symbol.HashMap(void).init(self.allocator);
         defer seen_symbols.deinit();
@@ -141,16 +141,16 @@ pub const Automaton = struct {
             for (self.grammar.rules) |rule| {
                 if (!rule.lhs.eql(&dot_symbol)) continue;
                 const new_item = Item.from(rule);
-                try closure_items.append(new_item);
+                try closure_items.append(self.allocator, new_item);
             }
         }
 
-        return try closure_items.toOwnedSlice();
+        return try closure_items.toOwnedSlice(self.allocator);
     }
 
     fn GOTO(self: *Automaton, items: []const Item, symbol: *const Symbol) std.mem.Allocator.Error![]Item {
-        var goto_items = std.ArrayList(Item).init(self.allocator);
-        defer goto_items.deinit();
+        var goto_items = std.ArrayList(Item).empty;
+        defer goto_items.deinit(self.allocator);
 
         for (items) |item| {
             if (item.is_complete()) continue;
@@ -159,7 +159,7 @@ pub const Automaton = struct {
             if (!item.dot_symbol().?.eql(symbol)) continue;
 
             const new_item = item.advance_dot_clone();
-            try goto_items.append(new_item);
+            try goto_items.append(self.allocator, new_item);
         }
 
         return try self.CLOSURE(goto_items.items);
@@ -173,10 +173,10 @@ test "automaton does not leak with non-arena allocator" {
     defer automaton.deinit();
     try automaton.build();
 
-    std.debug.print("Grammar: {s}\n", .{automaton.grammar});
+    std.debug.print("Grammar: {f}\n", .{automaton.grammar});
 
     for (automaton.states.items) |state| {
-        std.debug.print("{s}", .{state});
+        std.debug.print("{f}", .{state});
     }
 
     // for (automaton.transitions.values()) |transition| {

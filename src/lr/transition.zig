@@ -8,9 +8,7 @@ pub const Transition = struct {
     to: usize,
     symbol: Symbol,
 
-    pub fn format(self: *const Transition, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
-        _ = fmt;
-        _ = options;
-        try writer.print("goto({any}, '{any}')", .{ self.to, self.symbol });
+    pub fn format(self: *const Transition, writer: *std.io.Writer) !void {
+        try writer.print("goto({d}, '{f}')", .{ self.to, self.symbol });
     }
 };

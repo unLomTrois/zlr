@@ -28,10 +28,10 @@ pub const Rule = struct {
     ///
     /// e.g. S -> A A
     /// Returns "S -> A A"
-    pub fn format(self: *const Rule, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        try writer.print("{s} -> ", .{self.lhs});
+    pub fn format(self: *const Rule, writer: *std.io.Writer) !void {
+        try writer.print("{f} -> ", .{self.lhs});
         for (self.rhs, 0..) |symbol, i| {
-            try writer.print("{s}", .{symbol});
+            try writer.print("{f}", .{symbol});
             if (i < self.rhs.len - 1) {
                 try writer.print(" ", .{});
             }
@@ -64,7 +64,7 @@ pub const Rule = struct {
 
 test "rule" {
     const rule = Rule.from(Symbol.from("S"), &.{ Symbol.from("A"), Symbol.from("A") });
-    const str = try std.fmt.allocPrint(std.testing.allocator, "{s}", .{rule});
+    const str = try std.fmt.allocPrint(std.testing.allocator, "{f}", .{rule});
     defer std.testing.allocator.free(str);
     try std.testing.expectEqualStrings("S -> A A", str);
 }

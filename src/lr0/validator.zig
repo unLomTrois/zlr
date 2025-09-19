@@ -46,7 +46,7 @@ pub const LR0Validator = struct {
         defer action_map.deinit();
 
         if (toLog) {
-            std.debug.print("\n{s}", .{state});
+            std.debug.print("\n{f}", .{state});
         }
 
         for (state.items) |item| {

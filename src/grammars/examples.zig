@@ -162,9 +162,9 @@ test "dangling pointer bug demonstration" {
     // in the first rule (S' -> exp) is now pointing to overwritten memory
     std.log.info("Augmented grammar rules:\n", .{});
     for (augmented_grammar.rules) |rule| {
-        std.log.info("Rule: {s} -> ", .{rule.lhs});
+        std.log.info("Rule: {f} -> ", .{rule.lhs});
         for (rule.rhs) |symbol| {
-            std.log.info("{s} ", .{symbol});
+            std.log.info("{f} ", .{symbol});
         }
         std.log.info("\n", .{});
     }

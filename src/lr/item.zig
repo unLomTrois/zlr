@@ -92,7 +92,7 @@ pub const Item = struct {
     ///
     /// e.g. S -> A B •
     /// Returns "S -> A B •"
-    pub fn format(self: *const Item, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(self: *const Item, writer: *std.io.Writer) !void {
         try writer.print("[{?s}] ", .{std.enums.tagName(Action, self.action)});
         try writer.print("{s} ->", .{self.rule.lhs.name});
 
@@ -154,7 +154,7 @@ test "item_format" {
 
     const allocator = std.testing.allocator;
     for (cases) |case| {
-        const str = try std.fmt.allocPrint(allocator, "{s}", .{item});
+        const str = try std.fmt.allocPrint(allocator, "{f}", .{item});
         defer allocator.free(str);
         defer item = item.advance_dot_clone();
         try std.testing.expectEqualStrings(case, str);

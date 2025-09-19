@@ -40,7 +40,7 @@ pub const Symbol = struct {
     ///
     /// e.g. S
     /// Returns "S"
-    pub fn format(self: *const Symbol, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(self: *const Symbol, writer: *std.io.Writer) !void {
         try writer.print("{s}", .{self.name});
     }
 
@@ -98,7 +98,7 @@ test "symbol_format" {
     const symbol = try Symbol.fromAlloc(std.testing.allocator, "S");
     defer symbol.deinit(std.testing.allocator);
 
-    const str = try std.fmt.allocPrint(std.testing.allocator, "{s}", .{symbol});
+    const str = try std.fmt.allocPrint(std.testing.allocator, "{f}", .{symbol});
     defer std.testing.allocator.free(str);
 
     try std.testing.expectEqualStrings(str, "S");
