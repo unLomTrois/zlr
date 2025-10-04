@@ -178,10 +178,6 @@ test "automaton does not leak with non-arena allocator" {
     for (automaton.states.items) |state| {
         std.debug.print("{f}", .{state});
     }
-
-    // for (automaton.transitions.values()) |transition| {
-    //     std.debug.print("{any}\n", .{transition});
-    // }
 }
 
 test "root tests" {

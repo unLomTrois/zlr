@@ -113,7 +113,7 @@ pub const Grammar = struct {
     }
 
     pub fn format(self: *const Grammar, writer: *std.io.Writer) !void {
-        try writer.print("(augmented: {any})\n", .{self.is_augmented});
+        if (self.is_augmented) try writer.print("(augmented)\n", .{});
         try writer.print("{f}", .{self.asStaticView()});
     }
 };

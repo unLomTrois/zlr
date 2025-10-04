@@ -28,7 +28,7 @@ pub const State = struct {
     }
 
     pub fn format(self: *const State, writer: *std.io.Writer) !void {
-        try writer.print("State {d}\n", .{self.id});
+        try writer.print("State {d}:\n", .{self.id});
         for (self.items) |item| {
             try writer.print("  {f}\n", .{item});
         }

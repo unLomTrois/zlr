@@ -5,6 +5,26 @@ const Symbol = grammars.Symbol;
 
 const lr0 = @import("../lr0/automaton.zig");
 
+/// See Dragonbook 4.5.3 Shift-Reduce Parsing
+const TableAction = union(enum) {
+    /// Shift the next input symbol onto the top of the stack.
+    shift: usize,
+    /// The right end of the string to be reduced must be at the top of
+    /// the stack. Locate the left end of the string within the stack and decide
+    /// with what nonterminal to replace the string.
+    reduce: usize,
+    /// Announce successful completion of parsing.
+    accept,
+
+    pub fn format(self: TableAction, writer: *std.io.Writer) !void {
+        switch (self) {
+            .shift => |s| try writer.print("s{d}", .{s}),
+            .reduce => |r| try writer.print("r{d}", .{r}),
+            .accept => try writer.print("acc", .{}),
+        }
+    }
+};
+
 const TableEntry = struct {
     actions: []TableAction,
 
@@ -28,7 +48,7 @@ const TableEntry = struct {
         }
     }
 
-    pub fn format(self: *const TableEntry, writer: anytype) !void {
+    pub fn format(self: *const TableEntry, writer: *std.io.Writer) !void {
         if (self.actions.len == 0) {
             try writer.print("empty", .{});
         } else if (self.actions.len == 1) {
@@ -72,20 +92,6 @@ const TableEntry = struct {
 //     const result3 = try std.fmt.bufPrint(&buf, "{f}", .{entry2});
 //     try std.testing.expectEqualStrings("acc", result3);
 // }
-
-const TableAction = union(enum) {
-    shift: usize,
-    reduce: usize,
-    accept,
-
-    pub fn format(self: TableAction, writer: anytype) !void {
-        switch (self) {
-            .shift => |s| try writer.print("s{d}", .{s}),
-            .reduce => |r| try writer.print("r{d}", .{r}),
-            .accept => try writer.print("acc", .{}),
-        }
-    }
-};
 
 pub const ActionTable = struct {
     allocator: std.mem.Allocator,
@@ -200,7 +206,7 @@ pub const ParsingTable = struct {
         };
     }
 
-    fn writePadding(writer: anytype, n: usize) !void {
+    fn writePadding(writer: *std.io.Writer, n: usize) !void {
         var i: usize = 0;
         while (i < n) : (i += 1) {
             try writer.print(" ", .{});
@@ -311,7 +317,9 @@ test "parsing table from lr0 automaton" {
     var table = try ParsingTable.from_lr0(allocator, &automaton);
     defer table.deinit();
 
-    std.debug.print("\n{f}\n", .{table});
+    const src = @src();
+    std.debug.print("\n{s}:{d}:{d} Parsing Table:\n", .{ src.file, src.line, src.column });
+    std.debug.print("{f}\n", .{table});
 }
 
 test "root tests" {
