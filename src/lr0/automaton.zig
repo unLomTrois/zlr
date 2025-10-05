@@ -1,7 +1,7 @@
 const std = @import("std");
 const assert = std.debug.assert;
 
-const utils = @import("../utils/iter.zig");
+const utils = @import("../utils/utils.zig");
 
 const grammars = @import("../grammars/grammar.zig");
 const Symbol = grammars.Symbol;
