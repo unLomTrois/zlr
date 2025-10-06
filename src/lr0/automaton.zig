@@ -17,7 +17,6 @@ const Transition = @import("../lr/transition.zig").Transition;
 pub const LR0Validator = @import("validator.zig").LR0Validator;
 
 pub const ParsingTable = @import("../lr/parsing_table.zig").ParsingTable;
-pub const ParsingTable2 = @import("../lr/parsing_table_ai_bullshit.zig").ParsingTable;
 
 pub const Automaton = struct {
     allocator: std.mem.Allocator,
