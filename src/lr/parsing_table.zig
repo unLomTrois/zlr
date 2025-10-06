@@ -84,8 +84,6 @@ pub const ParsingTable = struct {
         const action_table = try FixedTable(?ActionOrConflict).init(allocator, n_states, n_terminals, null);
         const goto_table = try FixedTable(?usize).init(allocator, n_states, n_non_terminals, null);
 
-        std.debug.print("Number of states: {d}\n", .{n_states});
-
         for (automaton.states.items) |state| {
             // Rule 1 & 2: GOTO and ACTION-Shift
             for (state.transitions) |transition| {
@@ -130,9 +128,6 @@ pub const ParsingTable = struct {
 
                     action_table.data[state.id][terminal_id] = ActionOrConflict{ .action = to_add };
                 }
-
-                // const eof_action_idx = state.id * (n_terminals + 1) + n_terminals;
-                // try action_table.data[eof_action_idx].append(allocator, .{ .reduce = rule_idx });
             }
         }
 
@@ -181,11 +176,6 @@ test "This test prints a parsing table for a simple grammar" {
     var automaton = lr0.Automaton.init(allocator, grammar);
     defer automaton.deinit();
     try automaton.build();
-
-    std.debug.print("\nTerminals:\n", .{});
-    for (grammar.terminals) |t| {
-        std.debug.print("{f} ", .{t});
-    }
 
     var table = try ParsingTable.from_lr0(allocator, &automaton);
     defer table.deinit(allocator);

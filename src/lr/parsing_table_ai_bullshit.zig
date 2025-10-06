@@ -1,3 +1,5 @@
+// TODO: remove this file
+
 const std = @import("std");
 
 const grammars = @import("../grammars/grammar.zig");
@@ -191,6 +193,8 @@ pub const ParsingTable = struct {
                     const action_idx = state.id * (n_terminals + 1) + i;
                     try action_table.data[action_idx].append(allocator, .{ .reduce = rule_idx });
                 }
+
+                // fill EOF column because this version of table had no $ terminal in grammar
                 const eof_action_idx = state.id * (n_terminals + 1) + n_terminals;
                 try action_table.data[eof_action_idx].append(allocator, .{ .reduce = rule_idx });
             }
