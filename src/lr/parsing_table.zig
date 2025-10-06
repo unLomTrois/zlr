@@ -82,7 +82,7 @@ pub const ParsingTable = struct {
         const n_terminals = automaton.grammar.terminals.len;
         const n_non_terminals = automaton.grammar.non_terminals.len;
         const action_table = try FixedTable(?ActionOrConflict).init(allocator, n_states, n_terminals, null);
-        const goto_table = try FixedTable(?usize).init(allocator, n_states, n_non_terminals, null);
+        const goto_table = try FixedTable(?usize).init(allocator, n_states, n_non_terminals - 1, null);
 
         for (automaton.states.items) |state| {
             // Rule 1 & 2: GOTO and ACTION-Shift
@@ -92,7 +92,7 @@ pub const ParsingTable = struct {
                     action_table.data[state.id][terminal_id] = ActionOrConflict{ .action = TableAction{ .shift = transition.to } };
                 } else {
                     // TODO FORMAT THEM
-                    const non_terminal_id = automaton.grammar.get_non_terminal_id(transition.symbol).?;
+                    const non_terminal_id = automaton.grammar.get_non_terminal_id(transition.symbol).? - 1; // -1 because we don't want the augmented start symbol in the GOTO table
                     goto_table.data[state.id][non_terminal_id] = transition.to;
                 }
             }
@@ -146,11 +146,23 @@ pub const ParsingTable = struct {
 
     pub fn format(self: *const ParsingTable, writer: *std.io.Writer) !void {
         // print header
-        try writer.print("State\t| ACTION \n", .{});
+        try writer.print("State\t| ACTION", .{});
+
+        for (0..self.grammar.terminals.len - 1) |_| {
+            try writer.print("\t|", .{});
+        }
+        try writer.print(" GOTO\n", .{});
+
         try writer.print("\t|", .{});
+
         for (self.grammar.terminals) |t| {
             try writer.print(" {f}\t|", .{t});
         }
+        for (self.grammar.non_terminals) |nt| {
+            if (nt.is_augmented()) continue; // skip augmented start symbol
+            try writer.print("{f}\t|", .{nt});
+        }
+
         try writer.print("\n", .{});
 
         for (0..self.n_states) |state| {
@@ -163,6 +175,15 @@ pub const ParsingTable = struct {
                     try writer.print(" -\t|", .{});
                 }
             }
+
+            for (self.goto.data[state]) |cell| {
+                if (cell) |c| {
+                    try writer.print(" {d}\t|", .{c});
+                } else {
+                    try writer.print(" -\t|", .{});
+                }
+            }
+
             try writer.print("\n", .{});
         }
         try writer.print("\n", .{});
