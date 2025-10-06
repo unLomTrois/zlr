@@ -57,6 +57,10 @@ pub const Symbol = struct {
         return std.mem.eql(u8, self.name, "S'");
     }
 
+    pub fn is_eof(self: *const Symbol) bool {
+        return std.mem.eql(u8, self.name, "$");
+    }
+
     pub const HashMapContext = struct {
         pub fn hash(_: HashMapContext, key: Symbol) u64 {
             return key.hash();

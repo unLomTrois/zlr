@@ -205,9 +205,12 @@ pub const GrammarBuilder = struct {
         const s_prime = Symbol.from("S'");
         try self.non_terminals.insert(self.allocator, 0, s_prime);
 
+        const eof = Symbol.from("$");
+        try self.terminals.append(self.allocator, eof);
+
         const augmented_rule = Rule.from(s_prime, try Symbol.fromSlice(
             self.allocator,
-            &.{self.start_symbol},
+            &.{ self.start_symbol, eof },
         ));
         try self.rules.insert(self.allocator, 0, augmented_rule);
         self.start_symbol = s_prime;

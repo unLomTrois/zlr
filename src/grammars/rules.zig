@@ -22,6 +22,13 @@ pub const Rule = struct {
         return try alloc.dupe(Rule, rules);
     }
 
+    pub fn last_symbol(self: *const Rule) ?Symbol {
+        if (self.rhs.len == 0) {
+            return null;
+        }
+        return self.rhs[self.rhs.len - 1];
+    }
+
     /// Formats the struct as a string into a writer.
     /// E.g. std.fmt.allocPrint, std.io.getStdOut().writer(), etc.
     /// Not intended to be used directly. Instead provide rule into args of std.fmt.allocPrint, etc.

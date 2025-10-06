@@ -35,10 +35,18 @@ pub const Item = struct {
     }
 
     /// The item is complete if the dot is at the end of the rule
-    ///
+    /// or at $ symbol (end of input).
     /// e.g. S -> A B •
     pub fn is_complete(self: *const Item) bool {
-        return self.dot_pos >= self.rule.rhs.len;
+        if (self.dot_pos >= self.rule.rhs.len) { // S -> A B •
+            return true;
+        }
+
+        if (self.rule.rhs[self.dot_pos].is_eof()) { // S -> A B • $ considered complete
+            return true;
+        }
+
+        return false; // S -> A B • C
     }
 
     pub fn is_accept_item(self: *const Item) bool {
@@ -96,14 +104,18 @@ pub const Item = struct {
         try writer.print("[{?s}] ", .{std.enums.tagName(Action, self.action)});
         try writer.print("{s} ->", .{self.rule.lhs.name});
 
-        for (self.rule.rhs, 0..) |sym, i| {
+        for (self.rule.rhs, 0..) |sym, i| { // Iterate A B in S -> A B
             if (i == self.dot_pos) {
                 try writer.print(" •", .{});
             }
             try writer.print(" {s}", .{sym.name});
         }
 
-        if (self.is_complete()) {
+        if (self.is_complete()) { // S -> A B •
+            // don't print dot again if last symbol is $
+            if (self.rule.last_symbol().?.is_eof()) {
+                return;
+            }
             try writer.print(" •", .{});
         }
     }
@@ -173,4 +185,17 @@ test "item_hash_map" {
     defer hash_map.deinit();
     try hash_map.put(item, {});
     try std.testing.expectEqual(true, hash_map.contains(item));
+}
+
+test "S' -> S • $ is accept" {
+    const S_prime = Symbol.from("S'");
+    const S = Symbol.from("S");
+    const eof = Symbol.from("$");
+
+    const rule = Rule.from(S_prime, &[_]Symbol{ S, eof });
+    var item = Item.from(rule);
+    item.dot_pos = 1; // S' -> S • $
+
+    try std.testing.expect(item.is_complete());
+    try std.testing.expect(item.is_accept_item());
 }

@@ -67,25 +67,25 @@ pub const ParsingTable = struct {
             }
 
             // // Rule 3 & 4: ACTION-Reduce and ACTION-Accept
-            // for (state.items) |item| {
-            //     if (!item.is_complete()) continue;
+            for (state.items) |item| {
+                if (!item.is_complete()) continue;
 
-            //     // Accept
-            //     if (item.is_accept_item()) {
-            //         const eof_idx = state.id * (n_terminals + 1) + n_terminals;
-            //         try action_table.data[state.id][eof_idx];
-            //         continue;
-            //     }
+                // Accept
+                if (item.is_accept_item()) {
+                    const eof_id = automaton.grammar.get_terminal_id(Symbol.from("$")).?;
+                    action_table.data[state.id][eof_id] = TableAction{ .accept = {} };
+                    continue;
+                }
 
-            //     // Reduce
-            //     const rule_idx = automaton.grammar.find_rule_idx(item.rule).?;
-            //     for (0..n_terminals) |i| {
-            //         const action_idx = state.id * (n_terminals + 1) + i;
-            //         try action_table.data[action_idx].append(allocator, .{ .reduce = rule_idx });
-            //     }
-            //     const eof_action_idx = state.id * (n_terminals + 1) + n_terminals;
-            //     try action_table.data[eof_action_idx].append(allocator, .{ .reduce = rule_idx });
-            // }
+                // // Reduce
+                // const rule_idx = automaton.grammar.find_rule_idx(item.rule).?;
+                // for (0..n_terminals) |i| {
+                //     const action_idx = state.id * (n_terminals + 1) + i;
+                //     try action_table.data[action_idx].append(allocator, .{ .reduce = rule_idx });
+                // }
+                // const eof_action_idx = state.id * (n_terminals + 1) + n_terminals;
+                // try action_table.data[eof_action_idx].append(allocator, .{ .reduce = rule_idx });
+            }
         }
 
         return ParsingTable{
