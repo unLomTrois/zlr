@@ -66,6 +66,8 @@ pub const ParsingTable = struct {
                 }
             }
 
+            // TODO: figure out where did I get these rules... (perhaps from the Dragon Book? Check)
+
             // // Rule 3 & 4: ACTION-Reduce and ACTION-Accept
             for (state.items) |item| {
                 if (!item.is_complete()) continue;
