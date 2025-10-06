@@ -7,8 +7,11 @@ const lr0 = @import("../lr0/automaton.zig");
 
 const FixedTable = @import("../utils/utils.zig").FixedTable;
 
+const Action = @import("action.zig").Action;
+
 /// See Dragonbook 4.5.3 Shift-Reduce Parsing
-const TableAction = union(enum) {
+/// Action enriched with state numbers
+const TableAction = union(Action) {
     /// Shift the next input symbol onto the top of the stack.
     shift: usize,
     /// The right end of the string to be reduced must be at the top of
@@ -29,6 +32,36 @@ const TableAction = union(enum) {
     }
 };
 
+const Conflict = struct {
+    state: usize,
+    symbol: Symbol,
+    actions: [2]TableAction, // TODO: perhaps more than 2?
+
+    // e.g. {f}/{f} -> s1/r2
+    pub fn format(self: Conflict, writer: *std.io.Writer) !void {
+        // _ = self;
+        // try writer.print("conflict", .{});
+        for (self.actions, 0..2) |action, idx| {
+            try action.format(writer);
+            if (idx != self.actions.len - 1) { // not last
+                try writer.print("/", .{});
+            }
+        }
+    }
+};
+
+const ActionOrConflict = union(enum) {
+    action: TableAction,
+    conflict: Conflict,
+
+    pub fn format(self: ActionOrConflict, writer: *std.io.Writer) !void {
+        switch (self) {
+            .action => |a| try a.format(writer),
+            .conflict => |c| try c.format(writer),
+        }
+    }
+};
+
 /// State   | ACTION                     | GOTO           |
 ///         | id | +     | (  | )  |  $  | cycle | factor |
 /// 0       | s2 |       | s4 |    |     | 1     | 3      |
@@ -41,14 +74,14 @@ const TableAction = union(enum) {
 pub const ParsingTable = struct {
     n_states: usize,
     grammar: *const grammars.Grammar,
-    action: FixedTable(?TableAction),
+    action: FixedTable(?ActionOrConflict),
     goto: FixedTable(?usize),
 
     pub fn from_lr0(allocator: std.mem.Allocator, automaton: *const lr0.Automaton) !ParsingTable {
         const n_states = automaton.states.items.len;
         const n_terminals = automaton.grammar.terminals.len;
         const n_non_terminals = automaton.grammar.non_terminals.len;
-        const action_table = try FixedTable(?TableAction).init(allocator, n_states, n_terminals, null);
+        const action_table = try FixedTable(?ActionOrConflict).init(allocator, n_states, n_terminals, null);
         const goto_table = try FixedTable(?usize).init(allocator, n_states, n_non_terminals, null);
 
         std.debug.print("Number of states: {d}\n", .{n_states});
@@ -58,7 +91,7 @@ pub const ParsingTable = struct {
             for (state.transitions) |transition| {
                 if (automaton.grammar.is_terminal(&transition.symbol)) {
                     const terminal_id = automaton.grammar.get_terminal_id(transition.symbol).?;
-                    action_table.data[state.id][terminal_id] = TableAction{ .shift = transition.to };
+                    action_table.data[state.id][terminal_id] = ActionOrConflict{ .action = TableAction{ .shift = transition.to } };
                 } else {
                     // TODO FORMAT THEM
                     const non_terminal_id = automaton.grammar.get_non_terminal_id(transition.symbol).?;
@@ -75,16 +108,29 @@ pub const ParsingTable = struct {
                 // Accept
                 if (item.is_accept_item()) {
                     const eof_id = automaton.grammar.get_terminal_id(Symbol.from("$")).?;
-                    action_table.data[state.id][eof_id] = TableAction{ .accept = {} };
+                    action_table.data[state.id][eof_id] = ActionOrConflict{ .action = TableAction{ .accept = {} } };
                     continue;
                 }
 
-                // // Reduce
-                // const rule_idx = automaton.grammar.find_rule_idx(item.rule).?;
-                // for (0..n_terminals) |i| {
-                //     const action_idx = state.id * (n_terminals + 1) + i;
-                //     try action_table.data[action_idx].append(allocator, .{ .reduce = rule_idx });
-                // }
+                // Reduce
+                const rule_idx = automaton.grammar.find_rule_idx(item.rule).?;
+                for (automaton.grammar.terminals) |terminal| {
+                    const terminal_id = automaton.grammar.get_terminal_id(terminal).?;
+                    const to_add = TableAction{ .reduce = rule_idx };
+                    if (action_table.data[state.id][terminal_id]) |existing_action| {
+                        const conflict = Conflict{
+                            .state = state.id,
+                            .symbol = terminal,
+                            .actions = [2]TableAction{ existing_action.action, to_add },
+                        };
+
+                        action_table.data[state.id][terminal_id] = ActionOrConflict{ .conflict = conflict };
+                        continue;
+                    }
+
+                    action_table.data[state.id][terminal_id] = ActionOrConflict{ .action = to_add };
+                }
+
                 // const eof_action_idx = state.id * (n_terminals + 1) + n_terminals;
                 // try action_table.data[eof_action_idx].append(allocator, .{ .reduce = rule_idx });
             }
@@ -101,7 +147,6 @@ pub const ParsingTable = struct {
     pub fn deinit(self: *ParsingTable, allocator: std.mem.Allocator) void {
         self.action.deinit(allocator);
         self.goto.deinit(allocator);
-        // allocator.free(self.goto);
     }
 
     pub fn format(self: *const ParsingTable, writer: *std.io.Writer) !void {
@@ -109,7 +154,7 @@ pub const ParsingTable = struct {
         try writer.print("State\t| ACTION \n", .{});
         try writer.print("\t|", .{});
         for (self.grammar.terminals) |t| {
-            try writer.print(" {f}\t |", .{t});
+            try writer.print(" {f}\t|", .{t});
         }
         try writer.print("\n", .{});
 
@@ -118,9 +163,9 @@ pub const ParsingTable = struct {
 
             for (self.action.data[state]) |cell| {
                 if (cell) |c| {
-                    try writer.print(" {f}\t |", .{c});
+                    try writer.print(" {f}\t|", .{c});
                 } else {
-                    try writer.print(" -\t |", .{});
+                    try writer.print(" -\t|", .{});
                 }
             }
             try writer.print("\n", .{});
@@ -145,5 +190,4 @@ test "This test prints a parsing table for a simple grammar" {
     var table = try ParsingTable.from_lr0(allocator, &automaton);
     defer table.deinit(allocator);
     std.debug.print("\nParsing Table:\n{f}", .{table});
-    std.debug.print("\nAction table\n{any}", .{table.action.data});
 }
