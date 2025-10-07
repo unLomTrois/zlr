@@ -72,6 +72,7 @@ const ActionOrConflict = union(enum) {
 ///
 /// Action table is n_states x n_terminals
 /// Goto table is n_states x n_nonterminals
+/// Each cell is nullable, null basically means unreachable
 pub const ParsingTable = struct {
     n_states: usize,
     grammar: *const grammars.Grammar,
@@ -92,7 +93,9 @@ pub const ParsingTable = struct {
             for (state.transitions) |transition| {
                 if (automaton.grammar.is_terminal(&transition.symbol)) {
                     const terminal_id = automaton.grammar.get_terminal_id(transition.symbol).?;
-                    action_table.data[state.id][terminal_id] = ActionOrConflict{ .action = TableAction{ .shift = transition.to } };
+                    action_table.data[state.id][terminal_id] = ActionOrConflict{
+                        .action = TableAction{ .shift = transition.to },
+                    };
                 } else {
                     const non_terminal_id = automaton.grammar.get_non_terminal_id(transition.symbol).? - 1; // -1 because we don't want the augmented start symbol in the GOTO table
                     goto_table.data[state.id][non_terminal_id] = transition.to;
@@ -106,7 +109,9 @@ pub const ParsingTable = struct {
                 // Accept
                 if (item.is_accept_item()) {
                     const eof_id = automaton.grammar.get_terminal_id(Symbol.from("$")).?;
-                    action_table.data[state.id][eof_id] = ActionOrConflict{ .action = TableAction{ .accept = {} } };
+                    action_table.data[state.id][eof_id] = ActionOrConflict{
+                        .action = TableAction{ .accept = {} },
+                    };
                     continue;
                 }
 
@@ -148,6 +153,7 @@ pub const ParsingTable = struct {
         self.goto.deinit(allocator);
     }
 
+    // TODO: improve formatting, by pre-computing max length of each column
     pub fn format(self: *const ParsingTable, writer: *std.io.Writer) !void {
         // print header
         try writer.print("State\t| ACTION", .{});

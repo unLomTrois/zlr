@@ -136,9 +136,9 @@ pub const GrammarBuilder = struct {
         grammar: StaticGrammar,
     ) error{OutOfMemory}!GrammarBuilder {
         // Copy slices to owned memory.
-        const terminals = try Symbol.fromSlice(allocator, grammar.terminals);
-        const non_terminals = try Symbol.fromSlice(allocator, grammar.non_terminals);
-        const rules = try Rule.fromSlice(allocator, grammar.rules);
+        const terminals = try allocator.dupe(Symbol, grammar.terminals);
+        const non_terminals = try allocator.dupe(Symbol, grammar.non_terminals);
+        const rules = try allocator.dupe(Rule, grammar.rules);
 
         return GrammarBuilder{
             .allocator = allocator,
@@ -208,10 +208,15 @@ pub const GrammarBuilder = struct {
         const eof = Symbol.from("$");
         try self.terminals.append(self.allocator, eof);
 
-        const augmented_rule = Rule.from(s_prime, try Symbol.fromSlice(
-            self.allocator,
-            &.{ self.start_symbol, eof },
-        ));
+        const rhs = try self.allocator.dupe(Symbol, &.{
+            self.start_symbol,
+                // TODO: eof here does not change the output. Research why
+                // require the input to be fully consumed (ending with '$'), and clarify if omitting 'eof'
+                // is correct for this grammar or if there is a bug in the parser or grammar construction.
+                // eof,
+        });
+        const augmented_rule = Rule.from(s_prime, rhs);
+
         try self.rules.insert(self.allocator, 0, augmented_rule);
         self.start_symbol = s_prime;
 

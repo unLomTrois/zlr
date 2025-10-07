@@ -11,10 +11,6 @@ pub const Symbol = struct {
         return Symbol{ .name = name };
     }
 
-    pub noinline fn fromNoInline(name: []const u8) Symbol {
-        return Symbol{ .name = name };
-    }
-
     /// fromAlloc creates a symbol from a passed string, but also allocates the string inside the symbol
     /// It returns an unmanaged symbol, caller is responsible for freeing the string.
     /// Generally, you would use arena allocator for all three: grammar, rule, and symbol allocation.
@@ -26,12 +22,6 @@ pub const Symbol = struct {
 
     pub fn deinit(self: *const Symbol, alloc: std.mem.Allocator) void {
         alloc.free(self.name);
-    }
-
-    /// Copies and takes ownership of a slice, caller is responsible for freeing the slice.
-    /// Elements of the slice are supposed to be inited by fromInline.
-    pub fn fromSlice(alloc: std.mem.Allocator, symbols: []const Symbol) error{OutOfMemory}![]Symbol {
-        return try alloc.dupe(Symbol, symbols);
     }
 
     /// Formats the struct as a string into a writer.

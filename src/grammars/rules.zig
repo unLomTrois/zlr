@@ -17,11 +17,6 @@ pub const Rule = struct {
         };
     }
 
-    /// from const (static) slice to owned slice
-    pub fn fromSlice(alloc: std.mem.Allocator, rules: []const Rule) ![]Rule {
-        return try alloc.dupe(Rule, rules);
-    }
-
     pub fn last_symbol(self: *const Rule) ?Symbol {
         if (self.rhs.len == 0) {
             return null;
