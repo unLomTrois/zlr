@@ -50,6 +50,7 @@ const Conflict = struct {
     }
 };
 
+// Each cell can contain either a single action or a conflict (a list of conflicting actions)
 const ActionOrConflict = union(enum) {
     action: TableAction,
     conflict: Conflict,
@@ -85,19 +86,18 @@ pub const ParsingTable = struct {
         const goto_table = try FixedTable(?usize).init(allocator, n_states, n_non_terminals - 1, null);
 
         for (automaton.states.items) |state| {
+            // TODO: figure out where did I get these rules... (perhaps from the Dragon Book? Check)
+
             // Rule 1 & 2: GOTO and ACTION-Shift
             for (state.transitions) |transition| {
                 if (automaton.grammar.is_terminal(&transition.symbol)) {
                     const terminal_id = automaton.grammar.get_terminal_id(transition.symbol).?;
                     action_table.data[state.id][terminal_id] = ActionOrConflict{ .action = TableAction{ .shift = transition.to } };
                 } else {
-                    // TODO FORMAT THEM
                     const non_terminal_id = automaton.grammar.get_non_terminal_id(transition.symbol).? - 1; // -1 because we don't want the augmented start symbol in the GOTO table
                     goto_table.data[state.id][non_terminal_id] = transition.to;
                 }
             }
-
-            // TODO: figure out where did I get these rules... (perhaps from the Dragon Book? Check)
 
             // // Rule 3 & 4: ACTION-Reduce and ACTION-Accept
             for (state.items) |item| {
@@ -114,19 +114,23 @@ pub const ParsingTable = struct {
                 const rule_idx = automaton.grammar.find_rule_idx(item.rule).?;
                 for (automaton.grammar.terminals) |terminal| {
                     const terminal_id = automaton.grammar.get_terminal_id(terminal).?;
-                    const to_add = TableAction{ .reduce = rule_idx };
+                    const reduce_action = TableAction{ .reduce = rule_idx };
+
+                    // TODO: this code implies that existing_action is always an action, but what if it's a conflict?
+                    // Then we override it and lose information about the previous conflict.
+                    // In that case it would be better to extend the array of actions in the existing conflict.
                     if (action_table.data[state.id][terminal_id]) |existing_action| {
                         const conflict = Conflict{
                             .state = state.id,
                             .symbol = terminal,
-                            .actions = [2]TableAction{ existing_action.action, to_add },
+                            .actions = [2]TableAction{ existing_action.action, reduce_action },
                         };
 
                         action_table.data[state.id][terminal_id] = ActionOrConflict{ .conflict = conflict };
                         continue;
                     }
 
-                    action_table.data[state.id][terminal_id] = ActionOrConflict{ .action = to_add };
+                    action_table.data[state.id][terminal_id] = ActionOrConflict{ .action = reduce_action };
                 }
             }
         }
@@ -147,14 +151,13 @@ pub const ParsingTable = struct {
     pub fn format(self: *const ParsingTable, writer: *std.io.Writer) !void {
         // print header
         try writer.print("State\t| ACTION", .{});
-
         for (0..self.grammar.terminals.len - 1) |_| {
             try writer.print("\t|", .{});
         }
         try writer.print(" GOTO\n", .{});
 
+        // row that prints terminals and non-terminals columns
         try writer.print("\t|", .{});
-
         for (self.grammar.terminals) |t| {
             try writer.print(" {f}\t|", .{t});
         }
@@ -162,9 +165,9 @@ pub const ParsingTable = struct {
             if (nt.is_augmented()) continue; // skip augmented start symbol
             try writer.print("{f}\t|", .{nt});
         }
-
         try writer.print("\n", .{});
 
+        // actual state rows
         for (0..self.n_states) |state| {
             try writer.print("{d}\t|", .{state});
 

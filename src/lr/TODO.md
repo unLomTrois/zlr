@@ -1,0 +1,1 @@
+- [ ] According to Dragon book, LR0 and LR1 items seems to be different, so it's not very right to put it in general LR
