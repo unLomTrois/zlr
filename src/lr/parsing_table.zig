@@ -197,11 +197,16 @@ pub const ParsingTable = struct {
 
 test "This test prints a parsing table for a simple grammar" {
     const allocator = std.testing.allocator;
-    const grammar = try grammars.examples.ShiftReduceGrammar(allocator);
+    const grammar = try grammars.examples.SimpleGrammar(allocator);
+
+    std.debug.print("Grammar:\n{f}\n", .{grammar});
 
     var automaton = lr0.Automaton.init(allocator, grammar);
     defer automaton.deinit();
     try automaton.build();
+    for (automaton.states.items) |state| {
+        std.debug.print("{f}", .{state});
+    }
 
     var table = try ParsingTable.from_lr0(allocator, &automaton);
     defer table.deinit(allocator);

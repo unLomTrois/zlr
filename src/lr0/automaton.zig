@@ -172,12 +172,6 @@ test "automaton does not leak with non-arena allocator" {
     var automaton = Automaton.init(allocator, grammar);
     defer automaton.deinit();
     try automaton.build();
-
-    std.debug.print("Grammar: {f}\n", .{automaton.grammar});
-
-    for (automaton.states.items) |state| {
-        std.debug.print("{f}", .{state});
-    }
 }
 
 test "root tests" {

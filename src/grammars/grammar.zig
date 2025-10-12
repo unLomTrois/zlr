@@ -32,7 +32,7 @@ pub const StaticGrammar = struct {
 
     pub fn format(self: *const StaticGrammar, writer: *std.io.Writer) !void {
         for (self.rules) |rule| {
-            try writer.print("{f}\n", .{rule});
+            try writer.print("{f} .\n", .{rule});
         }
     }
 };
