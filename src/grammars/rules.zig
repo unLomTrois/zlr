@@ -9,6 +9,11 @@ pub const Rule = struct {
     lhs: Symbol,
     rhs: []const Symbol,
 
+    comptime {
+        std.debug.assert(@sizeOf(Rule) == 32); // Symbol is 16, slice is also 16
+        std.debug.assert(@alignOf(Rule) == 8);
+    }
+
     /// Inline wrapper for rule creation
     pub inline fn from(lhs: Symbol, rhs: []const Symbol) Rule {
         return Rule{
