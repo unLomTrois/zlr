@@ -12,11 +12,9 @@ const Action = @import("action.zig").Action;
 /// See Dragonbook 4.5.3 Shift-Reduce Parsing
 /// Action enriched with state numbers
 const TableAction = union(Action) {
-    /// Shift the next input symbol onto the top of the stack.
+    /// Shift and go to state `shift`
     shift: usize,
-    /// The right end of the string to be reduced must be at the top of
-    /// the stack. Locate the left end of the string within the stack and decide
-    /// with what nonterminal to replace the string.
+    /// Reduce by grammar rule which number is `reduce`
     reduce: usize,
     /// Announce successful completion of parsing.
     accept,
@@ -120,7 +118,6 @@ pub const ParsingTable = struct {
                 for (automaton.grammar.terminals) |terminal| {
                     const terminal_id = automaton.grammar.get_terminal_id(terminal).?;
                     const reduce_action = TableAction{ .reduce = rule_idx };
-
                     // TODO: this code implies that existing_action is always an action, but what if it's a conflict?
                     // Then we override it and lose information about the previous conflict.
                     // In that case it would be better to extend the array of actions in the existing conflict.
@@ -130,7 +127,6 @@ pub const ParsingTable = struct {
                             .symbol = terminal,
                             .actions = [2]TableAction{ existing_action.action, reduce_action },
                         };
-
                         action_table.data[state.id][terminal_id] = ActionOrConflict{ .conflict = conflict };
                         continue;
                     }
