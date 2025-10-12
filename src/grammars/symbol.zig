@@ -3,6 +3,10 @@ const std = @import("std");
 pub const Symbol = struct {
     name: []const u8,
 
+    comptime {
+        std.debug.assert(@sizeOf(Symbol) == 16);
+    }
+
     /// Inline wrapper for literal symbol creation
     /// deprecated: use fromAlloc instead
     /// prefer fromAlloc for all cases, it's more explicit and safer.
