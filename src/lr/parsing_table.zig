@@ -165,7 +165,7 @@ pub const ParsingTable = struct {
         }
         for (self.grammar.non_terminals) |nt| {
             if (nt.is_augmented()) continue; // skip augmented start symbol
-            try writer.print("{f}\t|", .{nt});
+            try writer.print(" {f}\t|", .{nt});
         }
         try writer.print("\n", .{});
 
