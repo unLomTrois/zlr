@@ -25,19 +25,14 @@ pub fn ExpressionGrammar(allocator: std.mem.Allocator) !Grammar {
     const term = Symbol.from("term");
     const factor = Symbol.from("factor");
 
-    var builder = try GrammarBuilder.fromStaticGrammar(allocator, StaticGrammar.from(
-        exp,
-        &.{ number, plus, times, lparen, rparen },
-        &.{ exp, term, factor },
-        &.{
-            Rule.from(exp, &.{ exp, plus, term }), // exp -> exp + term
-            Rule.from(exp, &.{term}), // exp -> term
-            Rule.from(term, &.{ term, times, factor }), // term -> term * factor
-            Rule.from(term, &.{factor}), // term -> factor
-            Rule.from(factor, &.{ lparen, exp, rparen }), // factor -> ( exp )
-            Rule.from(factor, &.{number}), // factor -> number
-        },
-    ));
+    var builder = try GrammarBuilder.fromRules(allocator, &.{
+        Rule.from(exp, &.{ exp, plus, term }), // exp -> exp + term
+        Rule.from(exp, &.{term}), // exp -> term
+        Rule.from(term, &.{ term, times, factor }), // term -> term * factor
+        Rule.from(term, &.{factor}), // term -> factor
+        Rule.from(factor, &.{ lparen, exp, rparen }), // factor -> ( exp )
+        Rule.from(factor, &.{number}), // factor -> number
+    });
 
     return try builder.toOwnedGrammar();
 }
@@ -57,20 +52,15 @@ pub fn SimpleGrammar(allocator: std.mem.Allocator) !Grammar {
     const B = Symbol.from("B");
     const OP = Symbol.from("OP");
 
-    var builder = try GrammarBuilder.fromStaticGrammar(allocator, StaticGrammar.from(
-        S,
-        &.{ id, plus, minus, times, divide },
-        &.{ S, A, B, OP },
-        &.{
-            Rule.from(S, &.{ A, OP, B }), // S -> A OP B
-            Rule.from(A, &.{id}), // A -> id
-            Rule.from(B, &.{id}), // B -> id
-            Rule.from(OP, &.{plus}), // OP -> +
-            Rule.from(OP, &.{minus}), // OP -> -
-            Rule.from(OP, &.{times}), // OP -> *
-            Rule.from(OP, &.{divide}), // OP -> /
-        },
-    ));
+    var builder = try GrammarBuilder.fromRules(allocator, &.{
+        Rule.from(S, &.{ A, OP, B }), // S -> A OP B
+        Rule.from(A, &.{id}), // A -> id
+        Rule.from(B, &.{id}), // B -> id
+        Rule.from(OP, &.{plus}), // OP -> +
+        Rule.from(OP, &.{minus}), // OP -> -
+        Rule.from(OP, &.{times}), // OP -> *
+        Rule.from(OP, &.{divide}), // OP -> /
+    });
 
     return try builder.toOwnedGrammar();
 }
@@ -85,17 +75,12 @@ pub fn ShiftReduceGrammar(allocator: std.mem.Allocator) !Grammar {
     const cycle = Symbol.from("cycle");
     const factor = Symbol.from("factor");
 
-    var builder = try GrammarBuilder.fromStaticGrammar(allocator, StaticGrammar.from(
-        cycle,
-        &.{ id, plus, lparen, rparen },
-        &.{ cycle, factor },
-        &.{
-            Rule.from(cycle, &.{ id, plus, id }), // cycle -> id + id
-            Rule.from(cycle, &.{factor}), // cycle -> factor
-            Rule.from(factor, &.{ lparen, cycle, rparen }), // factor -> ( cycle )
-            Rule.from(factor, &.{id}), // factor -> id
-        },
-    ));
+    var builder = try GrammarBuilder.fromRules(allocator, &.{
+        Rule.from(cycle, &.{ id, plus, id }), // cycle -> id + id
+        Rule.from(cycle, &.{factor}), // cycle -> factor
+        Rule.from(factor, &.{ lparen, cycle, rparen }), // factor -> ( cycle )
+        Rule.from(factor, &.{id}), // factor -> id
+    });
 
     return try builder.toOwnedGrammar();
 }
@@ -109,17 +94,12 @@ pub fn ReduceReduceGrammar(allocator: std.mem.Allocator) !Grammar {
     const A = Symbol.from("A");
     const B = Symbol.from("B");
 
-    var builder = try GrammarBuilder.fromStaticGrammar(allocator, StaticGrammar.from(
-        S,
-        &.{c},
-        &.{ S, A, B },
-        &.{
-            Rule.from(S, &.{A}), // S -> A
-            Rule.from(S, &.{B}), // S -> B
-            Rule.from(A, &.{c}), // A -> c
-            Rule.from(B, &.{c}), // B -> c
-        },
-    ));
+    var builder = try GrammarBuilder.fromRules(allocator, &.{
+        Rule.from(S, &.{A}), // S -> A
+        Rule.from(S, &.{B}), // S -> B
+        Rule.from(A, &.{c}), // A -> c
+        Rule.from(B, &.{c}), // B -> c
+    });
 
     return try builder.toOwnedGrammar();
 }

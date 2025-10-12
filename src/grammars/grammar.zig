@@ -131,6 +131,8 @@ pub const GrammarBuilder = struct {
 
     /// Build a mutable builder from a StaticGrammar.
     /// All slices are **copied** with `allocator`, so the input view stays valid.
+    ///
+    /// @deprecated Use `fromRules` instead, it sets terminals and non-terminals automatically.
     pub fn fromStaticGrammar(
         allocator: std.mem.Allocator,
         grammar: StaticGrammar,
@@ -146,6 +148,59 @@ pub const GrammarBuilder = struct {
             .non_terminals = std.ArrayList(Symbol).fromOwnedSlice(non_terminals),
             .rules = std.ArrayList(Rule).fromOwnedSlice(rules),
             .start_symbol = grammar.start_symbol,
+        };
+    }
+
+    /// Improved version that sets terminals and non-terminals automatically from rules.
+    pub fn fromRules(allocator: std.mem.Allocator, rules: []const Rule) error{ OutOfMemory, EmptyRules }!GrammarBuilder {
+        if (rules.len == 0) {
+            return error.EmptyRules; // Grammar needs at least one start symbol, without a rule, there's no start symbol.
+        }
+
+        const owned_rules = try allocator.dupe(Rule, rules);
+        errdefer allocator.free(owned_rules);
+
+        var lhs_set = Symbol.ArrayHashMap(void).init(allocator);
+        defer lhs_set.deinit();
+
+        // We use lhs_set to distinguish terminals from non-terminals, but we fill non_terminals_list using rhs symbols,
+        // so that if rules are like:
+        // S -> A OP B
+        // A -> a
+        // B -> d
+        // OP -> +
+        // we get non-terminals as follows: S, A, OP, B, not S, A, B, OP
+        for (owned_rules) |rule| {
+            try lhs_set.put(rule.lhs, {});
+        }
+
+        var seen_symbols = Symbol.ArrayHashMap(void).init(allocator);
+        defer seen_symbols.deinit();
+        var terminals_list = std.ArrayList(Symbol).empty;
+        var non_terminals_list = std.ArrayList(Symbol).empty;
+
+        for (owned_rules) |rule| {
+            if (!seen_symbols.contains(rule.lhs)) {
+                try seen_symbols.put(rule.lhs, {});
+                try non_terminals_list.append(allocator, rule.lhs);
+            }
+            for (rule.rhs) |symbol| {
+                if (seen_symbols.contains(symbol)) continue;
+                try seen_symbols.put(symbol, {});
+                if (lhs_set.contains(symbol)) {
+                    try non_terminals_list.append(allocator, symbol);
+                } else {
+                    try terminals_list.append(allocator, symbol);
+                }
+            }
+        }
+
+        return GrammarBuilder{
+            .allocator = allocator,
+            .terminals = terminals_list,
+            .non_terminals = non_terminals_list,
+            .rules = std.ArrayList(Rule).fromOwnedSlice(owned_rules),
+            .start_symbol = rules[0].lhs,
         };
     }
 
@@ -230,43 +285,12 @@ pub const GrammarBuilder = struct {
     }
 };
 
-test "full conversion cycle: static → builder → owned → builder → static" {
-    const allocator = std.testing.allocator;
-
-    const S = Symbol.from("S");
-    const A = Symbol.from("A");
-    const a = Symbol.from("a");
-    const b = Symbol.from("b");
-
-    const original_static = StaticGrammar.from(
-        S,
-        &.{ a, b },
-        &.{ S, A },
-        &.{
-            Rule.from(S, &.{ A, A }),
-            Rule.from(A, &.{a}),
-            Rule.from(A, &.{b}),
-        },
-    );
-
-    var builder = try GrammarBuilder.fromStaticGrammar(allocator, original_static);
-
-    const g = try builder.toOwnedGrammar();
-
-    builder = try GrammarBuilder.fromOwnedGrammar(allocator, g);
-
-    defer builder.deinit();
-
-    _ = builder.asStaticView();
-}
-
 test "expression grammar" {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
 
     const grammar = try examples.ExpressionGrammar(allocator);
-
     std.log.info("expression grammar:\n{f}\n", .{grammar});
 
     var builder = try GrammarBuilder.fromOwnedGrammar(allocator, grammar);
@@ -298,4 +322,41 @@ test "is_terminal" {
     try std.testing.expect(!grammar.is_terminal(&Symbol.from("exp")));
     try std.testing.expect(!grammar.is_terminal(&Symbol.from("term")));
     try std.testing.expect(!grammar.is_terminal(&Symbol.from("factor")));
+}
+
+test "fromRules builds a grammar correctly" {
+    const allocator = std.testing.allocator;
+
+    const S = Symbol.from("S");
+    const A = Symbol.from("A");
+    const a = Symbol.from("a");
+    const b = Symbol.from("b");
+
+    const rules = &.{
+        Rule.from(S, &.{ A, A }),
+        Rule.from(A, &.{a}),
+        Rule.from(A, &.{b}),
+    };
+
+    var builder = try GrammarBuilder.fromRules(allocator, rules);
+    defer builder.deinit();
+
+    const grammar = try builder.toOwnedGrammar();
+    defer grammar.deinit(allocator);
+
+    try std.testing.expectEqual(S, grammar.start_symbol);
+    try std.testing.expectEqual(2, grammar.non_terminals.len); // S, A
+    try std.testing.expectEqual(2, grammar.terminals.len); // a, b
+}
+
+test "fromRules with empty rules returns an error" {
+    _ = GrammarBuilder.fromRules(
+        std.testing.allocator,
+        &.{},
+    ) catch |err| {
+        try std.testing.expectEqual(error.EmptyRules, err);
+        return;
+    };
+
+    unreachable; // Should have returned an error.
 }
