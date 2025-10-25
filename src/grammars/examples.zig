@@ -87,7 +87,7 @@ pub fn ShiftReduceGrammar(allocator: std.mem.Allocator) !Grammar {
 
 // S -> A | B .
 // A -> c .
-// B-> c .
+// B -> c .
 pub fn ReduceReduceGrammar(allocator: std.mem.Allocator) !Grammar {
     const c = Symbol.from("c");
     const S = Symbol.from("S");

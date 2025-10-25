@@ -164,6 +164,12 @@ pub const Automaton = struct {
 
         return try self.CLOSURE(goto_items.items);
     }
+
+    pub fn format(self: *const Automaton, writer: *std.io.Writer) !void {
+        for (self.states.items) |state| {
+            try writer.print("{f}", .{state});
+        }
+    }
 };
 
 test "automaton does not leak with non-arena allocator" {

@@ -4,11 +4,28 @@
 const std = @import("std");
 const testing = std.testing;
 
-pub const grammar = @import("grammars/grammar.zig");
+pub const grammars = @import("grammars/grammar.zig");
 pub const lr0 = @import("lr0/automaton.zig");
+
+const ParsingTable = @import("lr/parsing_table.zig").ParsingTable;
 
 test "root tests" {
     std.testing.refAllDecls(@This());
+}
+
+test "This test prints a parsing table for a simple grammar" {
+    const allocator = std.testing.allocator;
+    const grammar = try grammars.examples.SimpleGrammar(allocator);
+    std.debug.print("Grammar:\n{f}\n", .{grammar});
+
+    var automaton = lr0.Automaton.init(allocator, grammar);
+    defer automaton.deinit();
+    try automaton.build();
+    std.debug.print("Automaton:\n {f}\n", .{automaton});
+
+    var table = try ParsingTable.from_lr0(allocator, &automaton);
+    defer table.deinit(allocator);
+    std.debug.print("Parsing Table:\n{f}", .{table});
 }
 
 // test "zlr library api" {
