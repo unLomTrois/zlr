@@ -14,6 +14,9 @@ test "root tests" {
 }
 
 test "This test prints a parsing table for a simple grammar" {
+    const src = @src();
+    std.debug.print("From: {s}:{d}:{d}\n", .{ src.file, src.line, src.column });
+
     const allocator = std.testing.allocator;
     const grammar = try grammars.examples.SimpleGrammar(allocator);
     std.debug.print("Grammar:\n{f}\n", .{grammar});
